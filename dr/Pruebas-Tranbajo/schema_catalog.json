@@ -1,0 +1,872 @@
+[
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "id",
+    "data_type": "int",
+    "max_length": 4,
+    "is_nullable": false,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "jurisdiction",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "unit",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "subunit",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "logical_access_name",
+    "data_type": "varchar",
+    "max_length": 150,
+    "is_nullable": false,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "alias",
+    "data_type": "varchar",
+    "max_length": 150,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "path_email_url",
+    "data_type": "varchar",
+    "max_length": 255,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "position_role",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "exception_tracking",
+    "data_type": "varchar",
+    "max_length": 255,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "fulfillment_action",
+    "data_type": "varchar",
+    "max_length": 255,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "system_owner",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "role_name",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "access_type",
+    "data_type": "varchar",
+    "max_length": 50,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "category",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "additional_data",
+    "data_type": "varchar",
+    "max_length": 255,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "ad_code",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "access_status",
+    "data_type": "varchar",
+    "max_length": 50,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "last_update_date",
+    "data_type": "datetime2",
+    "max_length": 8,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "require_licensing",
+    "data_type": "varchar",
+    "max_length": 255,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "description",
+    "data_type": "nvarchar",
+    "max_length": -1,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "authentication_method",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "unidad_subunidad",
+    "data_type": "varchar",
+    "max_length": 150,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "applications",
+    "column": "position",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "scotia_id",
+    "data_type": "varchar",
+    "max_length": 20,
+    "is_nullable": false,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "employee",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": false,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "full_name",
+    "data_type": "varchar",
+    "max_length": 150,
+    "is_nullable": false,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "email",
+    "data_type": "varchar",
+    "max_length": 150,
+    "is_nullable": false,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "position",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "manager",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "senior_manager",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "unit",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "start_date",
+    "data_type": "date",
+    "max_length": 3,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "ceco",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "skip_level",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "cafe_alcides",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "parents",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "personal_email",
+    "data_type": "varchar",
+    "max_length": 150,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "size",
+    "data_type": "varchar",
+    "max_length": 50,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "birthday",
+    "data_type": "date",
+    "max_length": 3,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "validacion",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "activo",
+    "data_type": "bit",
+    "max_length": 1,
+    "is_nullable": false,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "inactivation_date",
+    "data_type": "date",
+    "max_length": 3,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "headcount",
+    "column": "unidad_subunidad",
+    "data_type": "varchar",
+    "max_length": 150,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "id",
+    "data_type": "int",
+    "max_length": 4,
+    "is_nullable": false,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "scotia_id",
+    "data_type": "varchar",
+    "max_length": 20,
+    "is_nullable": false,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "employee_email",
+    "data_type": "varchar",
+    "max_length": 150,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "case_id",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "responsible",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "record_date",
+    "data_type": "datetime2",
+    "max_length": 8,
+    "is_nullable": false,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "request_date",
+    "data_type": "date",
+    "max_length": 3,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "process_access",
+    "data_type": "varchar",
+    "max_length": 50,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "subunit",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "event_description",
+    "data_type": "nvarchar",
+    "max_length": -1,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "ticket_email",
+    "data_type": "varchar",
+    "max_length": 150,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "app_access_name",
+    "data_type": "varchar",
+    "max_length": 150,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "computer_system_type",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "duration_of_access",
+    "data_type": "varchar",
+    "max_length": 50,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "status",
+    "data_type": "varchar",
+    "max_length": 50,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "closing_date_app",
+    "data_type": "date",
+    "max_length": 3,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "closing_date_ticket",
+    "data_type": "date",
+    "max_length": 3,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "app_quality",
+    "data_type": "varchar",
+    "max_length": 50,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "confirmation_by_user",
+    "data_type": "date",
+    "max_length": 3,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "comment",
+    "data_type": "nvarchar",
+    "max_length": -1,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "comment_tq",
+    "data_type": "nvarchar",
+    "max_length": -1,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "ticket_quality",
+    "data_type": "varchar",
+    "max_length": 50,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "general_status_ticket",
+    "data_type": "varchar",
+    "max_length": 50,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "general_status_case",
+    "data_type": "varchar",
+    "max_length": 50,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "average_time_open_ticket",
+    "data_type": "varchar",
+    "max_length": 20,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "sla_app",
+    "data_type": "varchar",
+    "max_length": 50,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "sla_ticket",
+    "data_type": "varchar",
+    "max_length": 50,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "historico",
+    "column": "sla_case",
+    "data_type": "varchar",
+    "max_length": 50,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "procesos",
+    "column": "id",
+    "data_type": "int",
+    "max_length": 4,
+    "is_nullable": false,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "procesos",
+    "column": "sid",
+    "data_type": "varchar",
+    "max_length": 20,
+    "is_nullable": false,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "procesos",
+    "column": "nueva_sub_unidad",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "procesos",
+    "column": "nuevo_cargo",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "procesos",
+    "column": "status",
+    "data_type": "varchar",
+    "max_length": 50,
+    "is_nullable": false,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "procesos",
+    "column": "request_date",
+    "data_type": "date",
+    "max_length": 3,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "procesos",
+    "column": "ingreso_por",
+    "data_type": "varchar",
+    "max_length": 100,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "procesos",
+    "column": "fecha_creacion",
+    "data_type": "datetime2",
+    "max_length": 8,
+    "is_nullable": false,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "procesos",
+    "column": "fecha_actualizacion",
+    "data_type": "datetime2",
+    "max_length": 8,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "procesos",
+    "column": "tipo_proceso",
+    "data_type": "varchar",
+    "max_length": 50,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "procesos",
+    "column": "app_name",
+    "data_type": "varchar",
+    "max_length": 150,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "procesos",
+    "column": "mail",
+    "data_type": "varchar",
+    "max_length": 150,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "procesos",
+    "column": "closing_date_app",
+    "data_type": "date",
+    "max_length": 3,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "procesos",
+    "column": "app_quality",
+    "data_type": "varchar",
+    "max_length": 50,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "procesos",
+    "column": "confirmation_by_user",
+    "data_type": "date",
+    "max_length": 3,
+    "is_nullable": true,
+    "description": ""
+  },
+  {
+    "database": "GAMLO_Empleados",
+    "schema": "dbo",
+    "table": "procesos",
+    "column": "comment",
+    "data_type": "nvarchar",
+    "max_length": -1,
+    "is_nullable": true,
+    "description": ""
+  }
+]

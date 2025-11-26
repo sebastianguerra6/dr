@@ -1,0 +1,19 @@
+# Ejecutable CLI (chat de metadatos)
+pyinstaller --onefile --console test_bot.py
+
+# Ejecutable de la app principal refactorizada (incluye recursos y módulos locales)
+pyinstaller ^
+    --onefile ^
+    --console ^
+    --name app_empleados ^
+    --add-data "config.py;." ^
+    --add-data "services;services" ^
+    --add-data "ui;ui" ^
+    --add-data "images;images" ^
+    --add-data "database;database" ^
+    --add-data "samples;samples" ^
+    --add-data "schema_catalog.json;." ^
+    app_empleados_refactorizada.py
+
+# Nota: en Windows, PyInstaller espera rutas en formato "origen;destino".
+# Si agregas nuevos recursos (por ejemplo output\ o archivos .sql), repite --add-data.
