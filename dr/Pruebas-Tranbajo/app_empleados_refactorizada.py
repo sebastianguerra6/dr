@@ -1821,9 +1821,7 @@ class AplicacionesFrame:
         categories = ["RRHH", "Tecnología", "Finanzas", "Operaciones", "Marketing", "Comunicaciones"]
         owners = ["Admin", "RRHH", "Tecnología", "Finanzas", "Operaciones", "Marketing", "Comunicaciones"]
         
-        dialog = ApplicationDialog(self.frame, "Nueva Aplicación", categories=categories, owners=owners,
-                                   unidades=self._obtener_unidades_headcount(),
-                                   unidades_sub=self._obtener_unidades_sub_headcount())
+        dialog = ApplicationDialog(self.frame, "Nueva Aplicación", categories=categories, owners=owners)
         self.frame.wait_window(dialog.dialog)
         
         if dialog.result:
@@ -1862,9 +1860,7 @@ class AplicacionesFrame:
         categories = ["RRHH", "Tecnología", "Finanzas", "Operaciones", "Marketing", "Comunicaciones"]
         owners = ["Admin", "RRHH", "Tecnología", "Finanzas", "Operaciones", "Marketing", "Comunicaciones"]
         
-        dialog = ApplicationDialog(self.frame, "Editar Aplicación", app_data, categories, owners,
-                                   unidades=self._obtener_unidades_headcount(),
-                                   unidades_sub=self._obtener_unidades_sub_headcount())
+        dialog = ApplicationDialog(self.frame, "Editar Aplicación", app_data, categories, owners)
         self.frame.wait_window(dialog.dialog)
         
         if dialog.result:

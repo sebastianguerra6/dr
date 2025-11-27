@@ -54,42 +54,224 @@ class AccessManagementService:
             (position_role or '').strip().upper(),
             (logical_access_name or '').strip().upper(),
         )
+    
+    @staticmethod
+    def _split_full_name(full_name: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+        """Divide un nombre completo en nombre y apellido simples."""
+        if not full_name:
+            return None, None
+        parts = str(full_name).strip().split(' ', 1)
+        if len(parts) == 1:
+            return parts[0], None
+        return parts[0], parts[1]
+    
+    def _get_headcount_select(self, where_clause: str = "", order_clause: str = "") -> str:
+        """
+        Construye el SELECT base para la tabla headcount exponiendo los nombres
+        antiguos que consume la UI mediante alias SQL.
+        """
+        base_query = """
+            SELECT
+                h.scotia_id,
+                h.eikon_id,
+                h.employee_number,
+                h.employee_number AS employee,
+                h.employee_name,
+                h.employee_last_name,
+                LTRIM(RTRIM(COALESCE(h.employee_name, ''))) +
+                    CASE WHEN COALESCE(h.employee_last_name, '') = '' THEN '' ELSE ' ' + h.employee_last_name END AS full_name,
+                h.business_email,
+                h.business_email AS email,
+                h.office,
+                h.department,
+                h.department AS unit,
+                h.department AS unidad_subunidad,
+                h.current_position_title,
+                h.current_position_title AS position,
+                h.current_position_level,
+                h.current_position_level AS position_level,
+                h.hiring_date_bns,
+                h.hiring_date_gbs,
+                h.hiring_date_aml,
+                h.supervisor_name,
+                h.supervisor_last_name,
+                h.address,
+                h.brigade,
+                h.begdate,
+                h.begdate AS start_date,
+                h.status,
+                CASE WHEN LOWER(ISNULL(h.status,'')) IN ('inactive','terminated','offboarded','baja') THEN 0 ELSE 1 END AS activo,
+                h.exit_date,
+                h.exit_date AS inactivation_date,
+                h.modality_as_today,
+                h.action_item,
+                h.exit_reason,
+                h.modality_reason,
+                h.gender,
+                h.dob,
+                h.dob AS birthday,
+                h.position_code,
+                NULL AS manager,
+                NULL AS senior_manager,
+                NULL AS ceco,
+                NULL AS skip_level,
+                NULL AS cafe_alcides,
+                NULL AS parents,
+                NULL AS personal_email,
+                NULL AS size,
+                NULL AS validacion
+            FROM headcount h
+        """
+        if where_clause:
+            base_query += f" WHERE {where_clause} "
+        if order_clause:
+            base_query += f" {order_clause} "
+        return base_query
+    
+    def _headcount_view(self) -> str:
+        """Retorna una subconsulta reutilizable con los alias legacy del headcount."""
+        return f"SELECT * FROM ({self._get_headcount_select()}) head"
+    
+    def _get_applications_select(self, where_clause: str = "", order_clause: str = "") -> str:
+        """
+        Construye el SELECT base para la tabla applications exponiendo columnas
+        compatibles con la lógica actual de la app.
+        """
+        base_query = """
+            SELECT
+                a.id,
+                a.status,
+                a.status AS access_status,
+                a.unit,
+                a.unit AS unidad,
+                a.service,
+                a.service AS subunit,
+                CONCAT(
+                    ISNULL(a.unit, ''),
+                    CASE WHEN a.unit IS NOT NULL AND a.service IS NOT NULL THEN ' / ' ELSE '' END,
+                    ISNULL(a.service, '')
+                ) AS unidad_subunidad,
+                a.role,
+                a.role AS role_name,
+                a.role AS position_role,
+                a.system_jurisdiction AS jurisdiction,
+                a.name_element AS logical_access_name,
+                a.name_element,
+                a.type_of_element AS ad_code,
+                a.type_of_element,
+                a.system_description,
+                a.system_description AS description,
+                a.information_needed,
+                a.information_needed AS exception_tracking,
+                a.approval_needed,
+                a.request_object,
+                a.form_need_to_request_access,
+                a.roles_and_profiles,
+                a.how_to_request_system_access,
+                a.how_to_request_system_access AS fulfillment_action,
+                a.how_to_remove_system_access,
+                a.for_issues,
+                a.critical_non_critical,
+                a.critical_non_critical AS access_type,
+                a.application_owner AS system_owner,
+                a.application_owner,
+                a.direct_contact,
+                a.sla_onboarding,
+                a.sla_offboarding,
+                a.system_application_link,
+                a.system_application_link AS path_email_url,
+                a.log_in_information,
+                a.log_in_information AS authentication_method,
+                a.access_blocked_password,
+                a.bulk_request,
+                a.certification_process,
+                a.license AS require_licensing,
+                a.license
+            FROM applications a
+        """
+        if where_clause:
+            base_query += f" WHERE {where_clause} "
+        if order_clause:
+            base_query += f" {order_clause} "
+        return base_query
+    
+    def _applications_view(self) -> str:
+        """Retorna una subconsulta reutilizable con los alias legacy de applications."""
+        return f"SELECT * FROM ({self._get_applications_select()}) apps"
+
+    def _prepare_application_db_data(self, app_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Normaliza los datos recibidos desde la UI para que coincidan con los nombres
+        reales de columnas en la tabla applications_dr.
+        """
+        def pick(*values):
+            for value in values:
+                if value is None:
+                    continue
+                if isinstance(value, str):
+                    trimmed = value.strip()
+                    if trimmed:
+                        return trimmed
+                else:
+                    return value
+            return None
+
+        unidad_sub = app_data.get('unidad_subunidad')
+        unit = pick(app_data.get('unit'))
+        service = pick(app_data.get('service'), app_data.get('subunit'))
+
+        if unidad_sub:
+            segments = [segment.strip() for segment in unidad_sub.replace('\\', '/').split('/') if segment.strip()]
+            if not unit and segments:
+                unit = segments[0]
+            if not service and len(segments) > 1:
+                service = segments[1]
+
+        role = pick(
+            app_data.get('role'),
+            app_data.get('position_role'),
+            app_data.get('role_name'),
+            app_data.get('roles_and_profiles')
+        )
+
+        return {
+            'status': pick(app_data.get('status'), app_data.get('access_status'), 'Active'),
+            'unit': unit,
+            'service': service,
+            'role': role,
+            'system_jurisdiction': pick(app_data.get('system_jurisdiction'), app_data.get('jurisdiction')),
+            'name_element': pick(app_data.get('name_element'), app_data.get('logical_access_name')),
+            'type_of_element': pick(app_data.get('type_of_element'), app_data.get('access_type'), app_data.get('ad_code')),
+            'system_description': pick(app_data.get('system_description'), app_data.get('description')),
+            'information_needed': pick(app_data.get('information_needed'), app_data.get('exception_tracking')),
+            'approval_needed': pick(app_data.get('approval_needed')),
+            'request_object': pick(app_data.get('request_object')),
+            'form_need_to_request_access': pick(app_data.get('form_need_to_request_access')),
+            'roles_and_profiles': pick(app_data.get('roles_and_profiles'), app_data.get('role_name')),
+            'how_to_request_system_access': pick(app_data.get('how_to_request_system_access'), app_data.get('fulfillment_action')),
+            'how_to_remove_system_access': pick(app_data.get('how_to_remove_system_access')),
+            'for_issues': pick(app_data.get('for_issues')),
+            'critical_non_critical': pick(app_data.get('critical_non_critical'), app_data.get('category')),
+            'application_owner': pick(app_data.get('application_owner'), app_data.get('system_owner')),
+            'direct_contact': pick(app_data.get('direct_contact')),
+            'sla_onboarding': pick(app_data.get('sla_onboarding')),
+            'sla_offboarding': pick(app_data.get('sla_offboarding')),
+            'system_application_link': pick(app_data.get('system_application_link'), app_data.get('path_email_url')),
+            'log_in_information': pick(app_data.get('log_in_information'), app_data.get('authentication_method')),
+            'access_blocked_password': pick(app_data.get('access_blocked_password')),
+            'bulk_request': pick(app_data.get('bulk_request')),
+            'certification_process': pick(app_data.get('certification_process')),
+            'license': pick(app_data.get('license'), app_data.get('require_licensing'))
+        }
 
     def __init__(self):
         """Inicializa el servicio con conexión a SQL Server"""
         self.db_manager = get_database_connection()
-        self._ensure_views_and_indexes()
 
     def get_connection(self) -> pyodbc.Connection:
         """Obtiene una conexión a la base de datos"""
         return self.db_manager.get_connection()
 
-    def _ensure_views_and_indexes(self):
-        """Asegura que existan los índices necesarios para SQL Server"""
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-            
-            # Crear índices para optimizar las consultas (sintaxis SQL Server)
-            indexes = [
-                "IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'idx_applications_unit_position' AND object_id = OBJECT_ID('applications')) CREATE INDEX idx_applications_unit_position ON applications (unit, position_role)",
-                "IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'idx_historico_scotia_status' AND object_id = OBJECT_ID('historico')) CREATE INDEX idx_historico_scotia_status ON historico (scotia_id, status)",
-                "IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'idx_historico_process_status' AND object_id = OBJECT_ID('historico')) CREATE INDEX idx_historico_process_status ON historico (process_access, status)",
-                "IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'idx_headcount_unit_position' AND object_id = OBJECT_ID('headcount')) CREATE INDEX idx_headcount_unit_position ON headcount (unit, position)"
-            ]
-            
-            for index_sql in indexes:
-                try:
-                    cursor.execute(index_sql)
-                except Exception as e:
-                    print(f"Advertencia: No se pudo crear índice: {e}")
-            
-            conn.commit()
-            conn.close()
-            
-        except Exception as e:
-            print(f"Error creando vistas e índices: {e}")
-            # No lanzar excepción para no interrumpir la inicialización
 
     # ==============================
     # MÉTODOS PARA HEADCOUNT
@@ -101,46 +283,90 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            # Validar datos requeridos
-            required_fields = ['scotia_id', 'employee', 'full_name', 'email']
-            for field in required_fields:
-                if not employee_data.get(field):
-                    return False, f"Campo requerido faltante: {field}"
+            scotia_id = employee_data.get('scotia_id')
+            employee_number = employee_data.get('employee_number') or employee_data.get('employee')
+            employee_name = employee_data.get('employee_name')
+            employee_last_name = employee_data.get('employee_last_name')
+            if (not employee_name or not employee_last_name) and employee_data.get('full_name'):
+                first_name, last_name = self._split_full_name(employee_data.get('full_name'))
+                employee_name = employee_name or first_name
+                employee_last_name = employee_last_name or last_name
 
-            # Usar unidad_subunidad directamente si se proporciona, o construirla
-            unidad_subunidad = employee_data.get('unidad_subunidad', '')
-            if not unidad_subunidad:
-                unit = employee_data.get('unit', '')
-                subunit = employee_data.get('subunit', '')
-                unidad_subunidad = f"{unit}/{subunit}" if unit and subunit else unit if unit else None
-            
-            # Insertar empleado
+            business_email = employee_data.get('business_email') or employee_data.get('email')
+            department = (
+                employee_data.get('department') or
+                employee_data.get('unit') or
+                employee_data.get('unidad_subunidad')
+            )
+            position_title = employee_data.get('current_position_title') or employee_data.get('position')
+            position_level = (
+                employee_data.get('current_position_level') or
+                employee_data.get('position_level') or
+                employee_data.get('position_role')
+            )
+
+            # Validar datos requeridos después de normalizar
+            validation_map = [
+                (scotia_id, 'scotia_id'),
+                (employee_number, 'employee_number'),
+                (employee_name, 'employee_name'),
+                (business_email, 'business_email'),
+                (department, 'department'),
+                (position_title, 'current_position_title')
+            ]
+            for value, field_name in validation_map:
+                if not value:
+                    return False, f"Campo requerido faltante: {field_name}"
+
+            office = employee_data.get('office') or employee_data.get('unit_office')
+            status_value = (
+                employee_data.get('status') or
+                employee_data.get('validacion') or
+                ('Active' if employee_data.get('activo', True) else 'Inactive')
+            )
+            exit_date = employee_data.get('exit_date') or employee_data.get('inactivation_date')
+            begdate = employee_data.get('begdate') or employee_data.get('start_date')
+            brigade_value = employee_data.get('brigade')
+            modality_as_today = employee_data.get('modality_as_today') or employee_data.get('size')
+            dob_value = employee_data.get('dob') or employee_data.get('birthday')
+
             cursor.execute('''
                 INSERT INTO headcount 
-                (scotia_id, employee, full_name, email, position, manager, senior_manager, 
-                 unit, unidad_subunidad, start_date, ceco, skip_level, cafe_alcides, parents, personal_email, 
-                 size, birthday, validacion, activo)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (scotia_id, eikon_id, employee_number, employee_name, employee_last_name,
+                 office, department, current_position_title, current_position_level,
+                 hiring_date_bns, hiring_date_gbs, hiring_date_aml,
+                 supervisor_name, supervisor_last_name, business_email, address,
+                 brigade, begdate, status, exit_date, modality_as_today, action_item,
+                 exit_reason, modality_reason, gender, dob, position_code)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
-                employee_data.get('scotia_id'),
-                employee_data.get('employee'),
-                employee_data.get('full_name'),
-                employee_data.get('email'),
-                employee_data.get('position'),
-                employee_data.get('manager'),
-                employee_data.get('senior_manager'),
-                employee_data.get('unit'),
-                unidad_subunidad,
-                employee_data.get('start_date'),
-                employee_data.get('ceco'),
-                employee_data.get('skip_level'),
-                employee_data.get('cafe_alcides'),
-                employee_data.get('parents'),
-                employee_data.get('personal_email'),
-                employee_data.get('size'),
-                employee_data.get('birthday'),
-                employee_data.get('validacion'),
-                employee_data.get('activo', True)
+                scotia_id,
+                employee_data.get('eikon_id'),
+                employee_number,
+                employee_name,
+                employee_last_name,
+                office,
+                department,
+                position_title,
+                position_level,
+                employee_data.get('hiring_date_bns'),
+                employee_data.get('hiring_date_gbs'),
+                employee_data.get('hiring_date_aml'),
+                employee_data.get('manager') or employee_data.get('supervisor_name'),
+                employee_data.get('senior_manager') or employee_data.get('supervisor_last_name'),
+                business_email,
+                employee_data.get('address'),
+                brigade_value,
+                begdate,
+                status_value,
+                exit_date,
+                modality_as_today,
+                employee_data.get('action_item'),
+                employee_data.get('exit_reason'),
+                employee_data.get('modality_reason'),
+                employee_data.get('gender'),
+                dob_value,
+                employee_data.get('position_code')
             ))
 
             conn.commit()
@@ -159,7 +385,8 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute('SELECT * FROM headcount WHERE scotia_id = ?', (scotia_id,))
+            query = self._get_headcount_select("h.scotia_id = ?")
+            cursor.execute(query, (scotia_id,))
             row = cursor.fetchone()
 
             if row:
@@ -181,7 +408,11 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute('SELECT * FROM headcount WHERE activo = 1 ORDER BY full_name')
+            query = self._get_headcount_select(
+                where_clause="LOWER(ISNULL(h.status,'')) NOT IN ('inactive','terminated','offboarded','baja') OR h.status IS NULL",
+                order_clause="ORDER BY full_name"
+            )
+            cursor.execute(query)
             rows = cursor.fetchall()
 
             columns = [description[0] for description in cursor.description]
@@ -195,20 +426,19 @@ class AccessManagementService:
             return []
 
     def update_employee_position(self, scotia_id: str, new_position: str, new_unit: str, new_unidad_subunidad: str = None) -> Tuple[bool, str]:
-        """Actualiza la posición, unidad y unidad_subunidad de un empleado"""
+        """Actualiza la posición y el departamento de un empleado"""
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            # Si no se proporciona unidad_subunidad, generar una basada en la unidad
-            if new_unidad_subunidad is None:
-                new_unidad_subunidad = f"{new_unit}/General" if new_unit else "Sin Unidad/Subunidad"
+            # Mapear valores al nuevo esquema
+            department_value = new_unidad_subunidad or new_unit
 
             cursor.execute('''
                 UPDATE headcount 
-                SET position = ?, unit = ?, unidad_subunidad = ?
+                SET current_position_title = ?, department = ?
                 WHERE scotia_id = ?
-            ''', (new_position, new_unit, new_unidad_subunidad, scotia_id))
+            ''', (new_position, department_value, scotia_id))
 
             if cursor.rowcount == 0:
                 conn.close()
@@ -228,35 +458,127 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            # Manejar unidad_subunidad
-            update_data = employee_data.copy()
-            if 'unidad_subunidad' not in update_data or not update_data['unidad_subunidad']:
-                # Si no se proporciona unidad_subunidad, construirla
-                if 'subunit' in update_data and 'unit' in update_data:
-                    unit = update_data['unit']
-                    subunit = update_data['subunit']
-                    update_data['unidad_subunidad'] = f"{unit}/{subunit}" if unit and subunit else unit if unit else None
-                    # No actualizar subunit directamente ya que no existe en la tabla
-                    del update_data['subunit']
+            updates: Dict[str, Any] = {}
+            for campo, valor in employee_data.items():
+                if campo == 'scotia_id':
+                    continue
 
-            # Construir query de actualización dinámicamente
-            set_clauses = []
-            params = []
+                if campo == 'full_name':
+                    first, last = self._split_full_name(valor)
+                    if first is not None:
+                        updates['employee_name'] = first
+                    if last is not None:
+                        updates['employee_last_name'] = last
+                    continue
 
-            for campo, valor in update_data.items():
-                if campo != 'scotia_id':  # No actualizar el SID
-                    set_clauses.append(f"{campo} = ?")
-                    params.append(valor)
+                if campo in ('employee', 'employee_number'):
+                    updates['employee_number'] = valor
+                    continue
 
-            if not set_clauses:
+                if campo in ('email', 'business_email'):
+                    updates['business_email'] = valor
+                    continue
+
+                if campo in ('unit', 'department', 'unidad_subunidad'):
+                    updates['department'] = valor
+                    continue
+
+                if campo in ('position', 'current_position_title'):
+                    updates['current_position_title'] = valor
+                    continue
+
+                if campo in ('position_level', 'current_position_level', 'position_role'):
+                    updates['current_position_level'] = valor
+                    continue
+
+                if campo in ('start_date', 'begdate'):
+                    updates['begdate'] = valor
+                    continue
+
+                if campo in ('status', 'validacion'):
+                    updates['status'] = valor
+                    continue
+
+                if campo == 'activo':
+                    updates['status'] = 'Active' if bool(valor) else 'Inactive'
+                    continue
+
+                if campo in ('exit_date', 'inactivation_date'):
+                    updates['exit_date'] = valor
+                    continue
+
+                if campo in ('size', 'modality_as_today'):
+                    updates['modality_as_today'] = valor
+                    continue
+
+                if campo in ('birthday', 'dob'):
+                    updates['dob'] = valor
+                    continue
+
+                if campo == 'manager' or campo == 'supervisor_name':
+                    updates['supervisor_name'] = valor
+                    continue
+
+                if campo == 'senior_manager' or campo == 'supervisor_last_name':
+                    updates['supervisor_last_name'] = valor
+                    continue
+
+                if campo == 'address':
+                    updates['address'] = valor
+                    continue
+
+                if campo == 'brigade':
+                    updates['brigade'] = valor
+                    continue
+
+                if campo == 'office':
+                    updates['office'] = valor
+                    continue
+
+                if campo == 'action_item':
+                    updates['action_item'] = valor
+                    continue
+
+                if campo == 'exit_reason':
+                    updates['exit_reason'] = valor
+                    continue
+
+                if campo == 'modality_reason':
+                    updates['modality_reason'] = valor
+                    continue
+
+                if campo == 'gender':
+                    updates['gender'] = valor
+                    continue
+
+                if campo == 'position_code':
+                    updates['position_code'] = valor
+                    continue
+
+                if campo == 'hiring_date_bns':
+                    updates['hiring_date_bns'] = valor
+                    continue
+
+                if campo == 'hiring_date_gbs':
+                    updates['hiring_date_gbs'] = valor
+                    continue
+
+                if campo == 'hiring_date_aml':
+                    updates['hiring_date_aml'] = valor
+                    continue
+
+            if not updates:
                 return False, "No hay datos para actualizar"
+
+            set_clauses = [f"{column} = ?" for column in updates.keys()]
+            params = list(updates.values())
+            params.append(scotia_id)
 
             query = f"""
                 UPDATE headcount 
                 SET {', '.join(set_clauses)}
                 WHERE scotia_id = ?
             """
-            params.append(scotia_id)
 
             cursor.execute(query, params)
 
@@ -279,7 +601,12 @@ class AccessManagementService:
             cursor = conn.cursor()
 
             # Verificar si el empleado existe
-            cursor.execute('SELECT full_name FROM headcount WHERE scotia_id = ?', (scotia_id,))
+            cursor.execute("""
+                SELECT
+                    LTRIM(RTRIM(COALESCE(employee_name, ''))) +
+                    CASE WHEN COALESCE(employee_last_name, '') = '' THEN '' ELSE ' ' + employee_last_name END AS full_name
+                FROM headcount WHERE scotia_id = ?
+            """, (scotia_id,))
             empleado = cursor.fetchone()
 
             if not empleado:
@@ -313,29 +640,29 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            # Construir consulta dinámicamente
-            query = 'SELECT logical_access_name, jurisdiction, unit, subunit, unidad_subunidad, alias, path_email_url, position_role, exception_tracking, fulfillment_action, system_owner, role_name, access_type, category, additional_data, ad_code, access_status, last_update_date, require_licensing, description, authentication_method FROM applications WHERE 1=1'
+            where_parts = []
             params = []
             
             if unidad_subunidad:
-                query += ' AND UPPER(LTRIM(RTRIM(unidad_subunidad))) = UPPER(LTRIM(RTRIM(?)))'
+                where_parts.append('UPPER(LTRIM(RTRIM(apps.unidad_subunidad))) = UPPER(LTRIM(RTRIM(?)))')
                 params.append(unidad_subunidad)
             
             if subunit:
-                query += ' AND UPPER(LTRIM(RTRIM(subunit))) = UPPER(LTRIM(RTRIM(?)))'
+                where_parts.append('UPPER(LTRIM(RTRIM(apps.subunit))) = UPPER(LTRIM(RTRIM(?)))')
                 params.append(subunit)
             
             if position:
-                # Buscar en ambas columnas: position (nueva) y position_role (antigua)
-                query += ' AND (UPPER(LTRIM(RTRIM(position))) = UPPER(LTRIM(RTRIM(?))) OR UPPER(LTRIM(RTRIM(position_role))) = UPPER(LTRIM(RTRIM(?))))'
-                params.append(position)
+                where_parts.append('UPPER(LTRIM(RTRIM(apps.position_role))) = UPPER(LTRIM(RTRIM(?)))')
                 params.append(position)
             
             if title:
-                query += ' AND UPPER(LTRIM(RTRIM(role_name))) = UPPER(LTRIM(RTRIM(?)))'
+                where_parts.append('UPPER(LTRIM(RTRIM(apps.role_name))) = UPPER(LTRIM(RTRIM(?)))')
                 params.append(title)
             
-            query += ' ORDER BY logical_access_name'
+            query = self._applications_view()
+            if where_parts:
+                query += " WHERE " + " AND ".join(where_parts)
+            query += ' ORDER BY apps.logical_access_name'
             
             # Debug: imprimir la consulta y parámetros
             print(f"DEBUG get_applications_by_position:")
@@ -360,27 +687,35 @@ class AccessManagementService:
                 print("DEBUG: No se encontraron aplicaciones. Verificando qué datos existen...")
                 
                 # Verificar posiciones disponibles
-                cursor.execute("SELECT DISTINCT position, position_role FROM applications WHERE access_status = 'Active'")
+                cursor.execute("SELECT DISTINCT role FROM applications WHERE status = 'Active'")
                 positions = cursor.fetchall()
                 print(f"DEBUG: Posiciones disponibles: {positions}")
                 
                 # Verificar unidades/subunidades disponibles
-                cursor.execute("SELECT DISTINCT unidad_subunidad FROM applications WHERE access_status = 'Active'")
+                cursor.execute("SELECT DISTINCT unit FROM applications WHERE status = 'Active'")
                 unidades = cursor.fetchall()
                 print(f"DEBUG: Unidades/Subunidades disponibles: {unidades}")
                 
                 # Verificar subunidades disponibles
-                cursor.execute("SELECT DISTINCT subunit FROM applications WHERE access_status = 'Active'")
+                cursor.execute("SELECT DISTINCT service FROM applications WHERE status = 'Active'")
                 subunidades = cursor.fetchall()
                 print(f"DEBUG: Subunidades disponibles: {subunidades}")
                 
                 # Buscar aplicaciones que contengan "Summer" en cualquier campo
-                cursor.execute("SELECT logical_access_name, position, position_role, unidad_subunidad, subunit FROM applications WHERE access_status = 'Active' AND (position LIKE '%Summer%' OR position_role LIKE '%Summer%')")
+                cursor.execute("""
+                    SELECT name_element, unit, service, role 
+                    FROM applications 
+                    WHERE status = 'Active' AND (role LIKE '%Summer%' OR service LIKE '%Summer%')
+                """)
                 summer_apps = cursor.fetchall()
                 print(f"DEBUG: Aplicaciones que contienen 'Summer': {summer_apps}")
                 
                 # Buscar aplicaciones que contengan "Business Intelligence" o "Analytics"
-                cursor.execute("SELECT logical_access_name, position, position_role, unidad_subunidad, subunit FROM applications WHERE access_status = 'Active' AND (unidad_subunidad LIKE '%Business Intelligence%' OR unidad_subunidad LIKE '%Analytics%' OR subunit LIKE '%Analytics%')")
+                cursor.execute("""
+                    SELECT name_element, unit, service, role 
+                    FROM applications 
+                    WHERE status = 'Active' AND (unit LIKE '%Business Intelligence%' OR unit LIKE '%Analytics%' OR service LIKE '%Analytics%')
+                """)
                 bi_apps = cursor.fetchall()
                 print(f"DEBUG: Aplicaciones relacionadas con Business Intelligence/Analytics: {bi_apps}")
             
@@ -402,8 +737,7 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            # Construir consulta más flexible - similar a la lógica de accesos normales
-            query = 'SELECT logical_access_name, jurisdiction, unit, subunit, alias, path_email_url, position_role, exception_tracking, fulfillment_action, system_owner, role_name, access_type, category, additional_data, ad_code, access_status, last_update_date, require_licensing, description, authentication_method FROM applications WHERE 1=1'
+            query = f"{self._applications_view()} WHERE 1=1"
             params = []
             
             # Filtrar por posición (obligatorio)
@@ -455,22 +789,30 @@ class AccessManagementService:
                 print("DEBUG: No se encontraron aplicaciones para flex staff. Verificando qué datos existen...")
                 
                 # Verificar posiciones disponibles
-                cursor.execute("SELECT DISTINCT position, position_role FROM applications WHERE access_status = 'Active'")
+                cursor.execute("SELECT DISTINCT role FROM applications WHERE status = 'Active'")
                 positions = cursor.fetchall()
                 print(f"DEBUG: Posiciones disponibles: {positions}")
                 
                 # Verificar unidades disponibles
-                cursor.execute("SELECT DISTINCT unit FROM applications WHERE access_status = 'Active'")
+                cursor.execute("SELECT DISTINCT unit FROM applications WHERE status = 'Active'")
                 units = cursor.fetchall()
                 print(f"DEBUG: Unidades disponibles: {units}")
                 
                 # Buscar aplicaciones que contengan "Analista"
-                cursor.execute("SELECT logical_access_name, position, position_role, unit, subunit FROM applications WHERE access_status = 'Active' AND (position LIKE '%Analista%' OR position_role LIKE '%Analista%')")
+                cursor.execute("""
+                    SELECT name_element, unit, service, role 
+                    FROM applications 
+                    WHERE status = 'Active' AND (role LIKE '%Analista%' OR service LIKE '%Analista%')
+                """)
                 analista_apps = cursor.fetchall()
                 print(f"DEBUG: Aplicaciones que contienen 'Analista': {analista_apps}")
                 
                 # Buscar aplicaciones que contengan "Recursos Humanos"
-                cursor.execute("SELECT logical_access_name, position, position_role, unit, subunit FROM applications WHERE access_status = 'Active' AND (unit LIKE '%Recursos Humanos%' OR subunit LIKE '%Recursos Humanos%')")
+                cursor.execute("""
+                    SELECT name_element, unit, service, role 
+                    FROM applications 
+                    WHERE status = 'Active' AND (unit LIKE '%Recursos Humanos%' OR service LIKE '%Recursos Humanos%')
+                """)
                 rh_apps = cursor.fetchall()
                 print(f"DEBUG: Aplicaciones relacionadas con Recursos Humanos: {rh_apps}")
             
@@ -490,7 +832,8 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute('SELECT * FROM applications ORDER BY logical_access_name')
+            query = f"{self._applications_view()} ORDER BY apps.logical_access_name"
+            cursor.execute(query)
             rows = cursor.fetchall()
 
             columns = [description[0] for description in cursor.description]
@@ -509,16 +852,12 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute('''
-                SELECT TOP 1 logical_access_name, jurisdiction, unit, subunit, 
-                       alias, path_email_url, position_role, exception_tracking, 
-                       fulfillment_action, system_owner, role_name, access_type, 
-                       category, additional_data, ad_code, access_status, 
-                       last_update_date, require_licensing, description, 
-                       authentication_method
-                FROM applications 
-                WHERE logical_access_name = ?
-            ''', (logical_access_name,))
+            query = f"""
+                SELECT TOP 1 *
+                FROM ({self._get_applications_select()}) apps
+                WHERE apps.logical_access_name = ?
+            """
+            cursor.execute(query, (logical_access_name,))
 
             row = cursor.fetchone()
             if row:
@@ -540,49 +879,32 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            # Validar datos requeridos
-            if not app_data.get('logical_access_name'):
-                return False, "Campo requerido faltante: logical_access_name"
+            db_app = self._prepare_application_db_data(app_data)
 
-            # Usar unidad_subunidad directamente si se proporciona, o construirla
-            unidad_subunidad = app_data.get('unidad_subunidad', '')
-            if not unidad_subunidad:
-                unit = app_data.get('unit', '')
-                subunit = app_data.get('subunit', '')
-                unidad_subunidad = f"{unit}/{subunit}" if unit and subunit else unit if unit else None
+            if not db_app.get('name_element'):
+                return False, "Campo requerido faltante: logical_access_name / name_element"
 
-            # Usar OUTPUT INSERTED.id para SQL Server
-            cursor.execute('''
-                INSERT INTO applications 
-                (jurisdiction, unit, subunit, unidad_subunidad, logical_access_name, alias, path_email_url, position_role, 
-                 exception_tracking, fulfillment_action, system_owner, role_name, access_type, 
-                 category, additional_data, ad_code, access_status, last_update_date, 
-                 require_licensing, description, authentication_method)
+            columns = [
+                'status', 'unit', 'service', 'role', 'system_jurisdiction',
+                'name_element', 'type_of_element', 'system_description',
+                'information_needed', 'approval_needed', 'request_object',
+                'form_need_to_request_access', 'roles_and_profiles',
+                'how_to_request_system_access', 'how_to_remove_system_access',
+                'for_issues', 'critical_non_critical', 'application_owner',
+                'direct_contact', 'sla_onboarding', 'sla_offboarding',
+                'system_application_link', 'log_in_information',
+                'access_blocked_password', 'bulk_request',
+                'certification_process', 'license'
+            ]
+
+            values = [db_app.get(column) for column in columns]
+            placeholders = ', '.join(['?'] * len(columns))
+
+            cursor.execute(f'''
+                INSERT INTO applications ({", ".join(columns)})
                 OUTPUT INSERTED.id
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                app_data.get('jurisdiction'),
-                app_data.get('unit'),
-                app_data.get('subunit'),
-                unidad_subunidad,
-                app_data.get('logical_access_name'),
-                app_data.get('alias'),
-                app_data.get('path_email_url'),
-                app_data.get('position_role'),
-                app_data.get('exception_tracking'),
-                app_data.get('fulfillment_action'),
-                app_data.get('system_owner'),
-                app_data.get('role_name'),
-                app_data.get('access_type'),
-                app_data.get('category'),
-                app_data.get('additional_data'),
-                app_data.get('ad_code'),
-                app_data.get('access_status', 'Active'),
-                datetime.now().isoformat(),
-                app_data.get('require_licensing'),
-                app_data.get('description'),
-                app_data.get('authentication_method')
-            ))
+                VALUES ({placeholders})
+            ''', values)
             app_id = cursor.fetchone()[0]
 
             conn.commit()
@@ -606,34 +928,20 @@ class AccessManagementService:
             if not result or result[0] == 0:
                 return False, f"Aplicación con ID {app_id} no encontrada"
 
-            # Manejar unidad_subunidad
-            update_data = app_data.copy()
-            if 'unidad_subunidad' not in update_data or not update_data['unidad_subunidad']:
-                # Si no se proporciona unidad_subunidad, construirla
-                if 'subunit' in update_data and 'unit' in update_data:
-                    unit = update_data['unit']
-                    subunit = update_data['subunit']
-                    update_data['unidad_subunidad'] = f"{unit}/{subunit}" if unit and subunit else unit if unit else None
+            db_app = self._prepare_application_db_data(app_data)
 
             set_clauses = []
             params = []
 
-            for field, value in update_data.items():
-                if field in ['jurisdiction', 'unit', 'subunit', 'unidad_subunidad', 'logical_access_name', 'alias', 'path_email_url', 
-                           'position_role', 'exception_tracking', 'fulfillment_action', 'system_owner', 
-                           'role_name', 'access_type', 'category', 'additional_data', 'ad_code', 
-                           'access_status', 'require_licensing', 'description', 'authentication_method']:
-                    set_clauses.append(f"{field} = ?")
+            for column, value in db_app.items():
+                if value is not None:
+                    set_clauses.append(f"{column} = ?")
                     params.append(value)
 
             if not set_clauses:
                 return False, "No hay campos válidos para actualizar"
 
-            set_clauses.append("last_update_date = ?")
-            params.append(datetime.now().isoformat())
-
             params.append(app_id)
-
             query = f"UPDATE applications SET {', '.join(set_clauses)} WHERE id = ?"
             cursor.execute(query, params)
 
@@ -651,7 +959,7 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute('SELECT logical_access_name FROM applications WHERE id = ?', (app_id,))
+            cursor.execute('SELECT name_element FROM applications WHERE id = ?', (app_id,))
             result = cursor.fetchone()
             if not result:
                 return False, f"Aplicación con ID {app_id} no encontrada"
@@ -703,9 +1011,9 @@ class AccessManagementService:
                     conn = self.get_connection()
                     cursor = conn.cursor()
                     cursor.execute('''
-                        SELECT TOP 1 unit, subunit, role_name, description
+                        SELECT TOP 1 unit, service, role, system_description
                         FROM applications 
-                        WHERE logical_access_name = ? AND position_role = ?
+                        WHERE name_element = ? AND role = ?
                     ''', (app_name, position))
                     
                     app_row = cursor.fetchone()
@@ -791,9 +1099,8 @@ class AccessManagementService:
             employee_email = record_data.get('employee_email')
             if not employee_email:
                 print(f"DEBUG: Obteniendo email del empleado {record_data.get('scotia_id')}")
-                cursor.execute('SELECT email FROM headcount WHERE scotia_id = ?', (record_data.get('scotia_id'),))
-                email_result = cursor.fetchone()
-                employee_email = email_result[0] if email_result else None
+                employee = self.get_employee_by_id(record_data.get('scotia_id'))
+                employee_email = employee.get('email') if employee else None
                 print(f"DEBUG: Email obtenido: {employee_email}")
 
             print(f"DEBUG: Preparando inserción con email: {employee_email}")
@@ -927,15 +1234,11 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            # Primero obtener la posición actual del empleado
-            cursor.execute('''
-                SELECT unit, position FROM headcount 
-                WHERE scotia_id = ? AND activo = 1
-            ''', (scotia_id,))
-            
-            emp_data = cursor.fetchone()
-            has_headcount = bool(emp_data)
-            current_unit, current_position = (emp_data if has_headcount else (None, None))
+            # Primero obtener la posición actual del empleado usando el servicio
+            employee = self.get_employee_by_id(scotia_id)
+            has_headcount = bool(employee)
+            current_unit = self._safe_strip(employee.get('unit'), '') if has_headcount else None
+            current_position = self._safe_strip(employee.get('position'), '') if has_headcount else None
             if has_headcount:
                 print(f"DEBUG: Accesos actuales - Posición actual: {current_position} en unidad: {current_unit}")
                 print(f"DEBUG: Onboarding: mostrar todos cuyo último proceso fue onboarding (sin filtrar por unidad/posición)")
@@ -1026,14 +1329,8 @@ class AccessManagementService:
             print(f"DEBUG: Accesos excluidos por tener offboarding como último proceso: {offboarding_count}")
 
             # Obtener unidad_subunidad del headcount si existe
-            unidad_subunidad = None
-            if has_headcount:
-                cursor.execute('''
-                    SELECT unidad_subunidad FROM headcount 
-                    WHERE scotia_id = ? AND activo = 1
-                ''', (scotia_id,))
-                unidad_result = cursor.fetchone()
-                unidad_subunidad = unidad_result[0] if unidad_result else None
+            unidad_subunidad = self._safe_strip(employee.get('unidad_subunidad'), '') if has_headcount else None
+            if unidad_subunidad:
                 print(f"DEBUG: unidad_subunidad del headcount: {unidad_subunidad}")
 
             # Obtener todos los tipos de accesos actuales
@@ -1183,16 +1480,16 @@ class AccessManagementService:
             if active:
                 cursor.execute('''
                     UPDATE headcount 
-                    SET activo = 1, inactivation_date = NULL
+                    SET status = 'Active', exit_date = NULL
                     WHERE scotia_id = ?
                 ''', (scotia_id,))
                 status_text = "activo"
             else:
                 cursor.execute('''
                     UPDATE headcount 
-                    SET activo = 0, inactivation_date = ?
+                    SET status = 'Inactive', exit_date = ?
                     WHERE scotia_id = ?
-                ''', (datetime.now().isoformat(), scotia_id))
+                ''', (datetime.now().date(), scotia_id))
                 status_text = "inactivo"
             
             conn.commit()
@@ -1231,23 +1528,22 @@ class AccessManagementService:
             # 4. Actualizar posición, unidad y unidad_subunidad del empleado si están vacías
             current_position = self._safe_strip(employee.get('position'), '')
             current_unit = self._safe_strip(employee.get('unit'), '')
-            current_unidad_subunidad = self._safe_strip(employee.get('unidad_subunidad'), '')
             
-            if not current_position or not current_unit or not current_unidad_subunidad:
+            if not current_position or not current_unit:
                 conn = self.get_connection()
                 cursor = conn.cursor()
                 cursor.execute('''
                     UPDATE headcount 
-                    SET position = ?, unit = ?, unidad_subunidad = ?
+                    SET current_position_title = ?, department = ?
                     WHERE scotia_id = ?
-                ''', (position, unit, unidad_subunidad, scotia_id))
+                ''', (position, unit, scotia_id))
                 conn.commit()
                 conn.close()
-                print(f"✅ Posición, unidad y unidad_subunidad actualizadas para {scotia_id}")
-                print(f"  - unidad_subunidad: '{unidad_subunidad}' (del formulario)")
+                print(f"✅ Posición y departamento actualizados para {scotia_id}")
+                print(f"  - Departamento: '{unit}' (del formulario)")
             else:
                 print(f"✅ Empleado ya tiene todos los campos poblados")
-                print(f"  - unidad_subunidad actual: '{current_unidad_subunidad}'")
+                print(f"  - Departamento actual: '{current_unit}'")
             
             # 5. Obtener aplicaciones requeridas para la posición y unidad/subunidad
             required_apps = self.get_applications_by_position(position, unidad_subunidad, subunit=subunit)
@@ -1411,10 +1707,9 @@ class AccessManagementService:
             inactivation_date = datetime.now().strftime('%Y-%m-%d')
             cursor.execute('''
                 UPDATE headcount 
-                SET activo = 0, 
-                    inactivation_date = ?, 
-                    unit = 'out of the unit',
-                    unidad_subunidad = 'out of the unit'
+                SET status = 'Inactive', 
+                    exit_date = ?, 
+                    department = 'out of the unit'
                 WHERE scotia_id = ?
             ''', (inactivation_date, scotia_id))
             conn.commit()
@@ -1493,7 +1788,7 @@ class AccessManagementService:
             cursor = conn.cursor()
             
             # Obtener unidad_subunidad del headcount para usar como fallback
-            cursor.execute('SELECT unidad_subunidad FROM headcount WHERE scotia_id = ?', (scotia_id,))
+            cursor.execute('SELECT department FROM headcount WHERE scotia_id = ?', (scotia_id,))
             hc_result = cursor.fetchone()
             default_unidad_subunidad = self._safe_strip(hc_result[0] if hc_result else None, '').upper()
             
@@ -2216,15 +2511,17 @@ class AccessManagementService:
             cursor = conn.cursor()
             
             stats = {}
+            headcount_view = self._get_headcount_select()
+            subquery = f"({headcount_view}) head"
             
             # 1. Estadísticas por unidad
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT unit as unidad, COUNT(*) as total_empleados,
                        COUNT(CASE WHEN activo = 1 THEN 1 END) as activos,
                        COUNT(CASE WHEN activo = 0 THEN 1 END) as inactivos,
                        COUNT(CASE WHEN position IS NOT NULL AND position != '' THEN 1 END) as con_posicion,
                        COUNT(CASE WHEN start_date IS NOT NULL AND start_date != '' THEN 1 END) as con_fecha_inicio
-                FROM headcount
+                FROM {subquery}
                 WHERE unit IS NOT NULL AND unit != ''
                 GROUP BY unit
                 ORDER BY total_empleados DESC
@@ -2232,12 +2529,12 @@ class AccessManagementService:
             stats['por_unidad'] = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
             
             # 2. Estadísticas por puesto
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT position as puesto, unit as unidad, COUNT(*) as total_empleados,
                        COUNT(CASE WHEN activo = 1 THEN 1 END) as activos,
                        COUNT(CASE WHEN activo = 0 THEN 1 END) as inactivos,
                        COUNT(CASE WHEN start_date IS NOT NULL AND start_date != '' THEN 1 END) as con_fecha_inicio
-                FROM headcount
+                FROM {subquery}
                 WHERE position IS NOT NULL AND position != ''
                 GROUP BY position, unit
                 ORDER BY total_empleados DESC
@@ -2245,11 +2542,11 @@ class AccessManagementService:
             stats['por_puesto'] = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
             
             # 3. Estadísticas por manager
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT manager, unit as unidad, COUNT(*) as total_empleados,
                        COUNT(CASE WHEN activo = 1 THEN 1 END) as activos,
                        COUNT(CASE WHEN activo = 0 THEN 1 END) as inactivos
-                FROM headcount
+                FROM {subquery}
                 WHERE manager IS NOT NULL AND manager != ''
                 GROUP BY manager, unit
                 ORDER BY total_empleados DESC
@@ -2257,11 +2554,11 @@ class AccessManagementService:
             stats['por_manager'] = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
             
             # 4. Estadísticas por senior manager
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT senior_manager, unit as unidad, COUNT(*) as total_empleados,
                        COUNT(CASE WHEN activo = 1 THEN 1 END) as activos,
                        COUNT(CASE WHEN activo = 0 THEN 1 END) as inactivos
-                FROM headcount
+                FROM {subquery}
                 WHERE senior_manager IS NOT NULL AND senior_manager != ''
                 GROUP BY senior_manager, unit
                 ORDER BY total_empleados DESC
@@ -2269,25 +2566,25 @@ class AccessManagementService:
             stats['por_senior_manager'] = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
             
             # 5. Estadísticas por estado de activación
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT 
                     CASE WHEN activo = 1 THEN 'Active' ELSE 'Inactive' END as estado,
                     COUNT(*) as total_empleados,
                     COUNT(CASE WHEN inactivation_date IS NOT NULL THEN 1 END) as con_fecha_inactivacion
-                FROM headcount
+                FROM {subquery}
                 GROUP BY activo
                 ORDER BY activo DESC
             ''')
             stats['por_estado'] = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
             
             # 6. Estadísticas por año de inicio (si hay fecha de inicio)
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT 
                     YEAR(start_date) as año_inicio,
                     COUNT(*) as total_empleados,
                     COUNT(CASE WHEN activo = 1 THEN 1 END) as activos,
                     COUNT(CASE WHEN activo = 0 THEN 1 END) as inactivos
-                FROM headcount
+                FROM {subquery}
                 WHERE start_date IS NOT NULL
                 GROUP BY YEAR(start_date)
                 ORDER BY año_inicio DESC
@@ -2295,7 +2592,7 @@ class AccessManagementService:
             stats['por_año_inicio'] = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
             
             # 7. Resumen detallado por unidad (con lista de empleados)
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT 
                     unit as unidad,
                     scotia_id,
@@ -2306,14 +2603,14 @@ class AccessManagementService:
                     CASE WHEN activo = 1 THEN 'Active' ELSE 'Inactive' END as estado,
                     start_date,
                     inactivation_date
-                FROM headcount
+                FROM {subquery}
                 WHERE unit IS NOT NULL AND unit != ''
                 ORDER BY unit, full_name
             ''')
             stats['detalle_por_unidad'] = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
             
             # 8. Estadísticas generales
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT 
                     COUNT(*) as total_empleados,
                     COUNT(CASE WHEN activo = 1 THEN 1 END) as activos,
@@ -2323,7 +2620,7 @@ class AccessManagementService:
                     COUNT(CASE WHEN manager IS NOT NULL AND manager != '' THEN 1 END) as con_manager,
                     COUNT(CASE WHEN senior_manager IS NOT NULL AND senior_manager != '' THEN 1 END) as con_senior_manager,
                     COUNT(CASE WHEN inactivation_date IS NOT NULL THEN 1 END) as con_fecha_inactivacion
-                FROM headcount
+                FROM {subquery}
             ''')
             stats['generales'] = dict(zip([col[0] for col in cursor.description], cursor.fetchone()))
             
@@ -2339,14 +2636,15 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
             
+            apps_view = f"({self._get_applications_select()}) apps"
             # Obtener aplicaciones únicas del historial y de la tabla applications
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT DISTINCT app_access_name as application_name
                 FROM historico 
                 WHERE app_access_name IS NOT NULL AND app_access_name != ''
                 UNION
                 SELECT DISTINCT logical_access_name as application_name
-                FROM applications 
+                FROM {apps_view}
                 WHERE logical_access_name IS NOT NULL AND logical_access_name != ''
                 ORDER BY application_name
             ''')
@@ -2364,11 +2662,12 @@ class AccessManagementService:
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
+            apps_view = f"({self._get_applications_select()}) apps"
             
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT DISTINCT position_role
-                FROM applications 
-                WHERE access_status = 'Active' AND position_role IS NOT NULL
+                FROM {apps_view}
+                WHERE access_status = 'Active' AND position_role IS NOT NULL AND position_role != ''
                 ORDER BY position_role
             ''')
             
@@ -2386,10 +2685,11 @@ class AccessManagementService:
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
+            apps_view = f"({self._get_applications_select()}) apps"
             
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT logical_access_name, description, role_name, unit, subunit
-                FROM applications 
+                FROM {apps_view}
                 WHERE access_status = 'Active' 
                 AND position_role = ?
                 ORDER BY logical_access_name

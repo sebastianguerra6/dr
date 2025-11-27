@@ -4,230 +4,330 @@
 -- =====================================================
 
 -- Crear base de datos si no existe
-IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'GAMLO_Empleados')
+IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'GAMLO_Empleados_DR')
 BEGIN
-    CREATE DATABASE GAMLO_Empleados;
-    PRINT 'Base de datos GAMLO_Empleados creada exitosamente';
+    CREATE DATABASE GAMLO_Empleados_DR;
+    PRINT 'Base de datos GAMLO_Empleados_DR creada exitosamente';
 END
 ELSE
 BEGIN
-    PRINT 'Base de datos GAMLO_Empleados ya existe';
+    PRINT 'Base de datos GAMLO_Empleados_DR ya existe';
 END
 GO
 
-USE GAMLO_Empleados;
+USE GAMLO_Empleados_DR;
+GO
+
+-- Eliminar llaves foráneas existentes para poder recrear las tablas
+DECLARE @fk_table SYSNAME, @sql NVARCHAR(400);
+
+SET @fk_table = NULL;
+SELECT @fk_table = QUOTENAME(OBJECT_SCHEMA_NAME(parent_object_id)) + '.' + QUOTENAME(OBJECT_NAME(parent_object_id))
+FROM sys.foreign_keys WHERE name = 'FK_historico_headcount';
+IF @fk_table IS NOT NULL
+BEGIN
+    SET @sql = N'ALTER TABLE ' + @fk_table + N' DROP CONSTRAINT FK_historico_headcount;';
+    EXEC sp_executesql @sql;
+    PRINT 'FK_historico_headcount eliminada.';
+END
+
+SET @fk_table = NULL;
+SELECT @fk_table = QUOTENAME(OBJECT_SCHEMA_NAME(parent_object_id)) + '.' + QUOTENAME(OBJECT_NAME(parent_object_id))
+FROM sys.foreign_keys WHERE name = 'FK_procesos_headcount';
+IF @fk_table IS NOT NULL
+BEGIN
+    SET @sql = N'ALTER TABLE ' + @fk_table + N' DROP CONSTRAINT FK_procesos_headcount;';
+    EXEC sp_executesql @sql;
+    PRINT 'FK_procesos_headcount eliminada.';
+END
+
+SET @fk_table = NULL;
+SELECT @fk_table = QUOTENAME(OBJECT_SCHEMA_NAME(parent_object_id)) + '.' + QUOTENAME(OBJECT_NAME(parent_object_id))
+FROM sys.foreign_keys WHERE name = 'FK_historico_applications';
+IF @fk_table IS NOT NULL
+BEGIN
+    SET @sql = N'ALTER TABLE ' + @fk_table + N' DROP CONSTRAINT FK_historico_applications;';
+    EXEC sp_executesql @sql;
+    PRINT 'FK_historico_applications eliminada.';
+END
+GO
+
+-- Eliminar tablas legacy si aún existen
+IF OBJECT_ID(N'[dbo].[headcount]', N'U') IS NOT NULL
+BEGIN
+    DROP TABLE [dbo].[headcount];
+    PRINT 'Tabla legacy headcount eliminada.';
+END
+
+IF OBJECT_ID(N'[dbo].[applications]', N'U') IS NOT NULL
+BEGIN
+    DROP TABLE [dbo].[applications];
+    PRINT 'Tabla legacy applications eliminada.';
+END
+
+IF OBJECT_ID(N'[dbo].[historico]', N'U') IS NOT NULL
+BEGIN
+    DROP TABLE [dbo].[historico];
+    PRINT 'Tabla legacy historico eliminada.';
+END
+
+IF OBJECT_ID(N'[dbo].[procesos]', N'U') IS NOT NULL
+BEGIN
+    DROP TABLE [dbo].[procesos];
+    PRINT 'Tabla legacy procesos eliminada.';
+END
 GO
 
 -- =====================================================
 -- TABLA 1: HEADCOUNT (Empleados)
 -- =====================================================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[headcount]') AND type in (N'U'))
+IF OBJECT_ID(N'[dbo].[headcount_dr]', N'U') IS NOT NULL
 BEGIN
-    CREATE TABLE [dbo].[headcount] (
-        [scotia_id] VARCHAR(20) NOT NULL PRIMARY KEY,
-        [employee] VARCHAR(100) NOT NULL,
-        [full_name] VARCHAR(150) NOT NULL,
-        [email] VARCHAR(150) NOT NULL,
-        [position] VARCHAR(100) NULL,
-        [manager] VARCHAR(100) NULL,
-        [senior_manager] VARCHAR(100) NULL,
-        [unit] VARCHAR(100) NULL,
-        [unidad_subunidad] VARCHAR(150) NULL,
-        [start_date] DATE NULL,
-        [ceco] VARCHAR(100) NULL,
-        [skip_level] VARCHAR(100) NULL,
-        [cafe_alcides] VARCHAR(100) NULL,
-        [parents] VARCHAR(100) NULL,
-        [personal_email] VARCHAR(150) NULL,
-        [size] VARCHAR(50) NULL,
-        [birthday] DATE NULL,
-        [validacion] VARCHAR(100) NULL,
-        [activo] BIT NOT NULL DEFAULT 1,
-        [inactivation_date] DATE NULL
-    );
-    PRINT 'Tabla headcount creada exitosamente';
+    DROP TABLE [dbo].[headcount_dr];
+    PRINT 'Tabla headcount existente eliminada (se recreará con el esquema actual).';
 END
-ELSE
-BEGIN
-    PRINT 'Tabla headcount ya existe';
-    -- Agregar columna unidad_subunidad si no existe
-    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[headcount]') AND name = 'unidad_subunidad')
-    BEGIN
-        ALTER TABLE [dbo].[headcount]
-        ADD [unidad_subunidad] VARCHAR(150) NULL;
-        PRINT 'Columna unidad_subunidad agregada a la tabla headcount';
-    END
-END
+GO
+
+CREATE TABLE [dbo].[headcount_dr] (
+    [scotia_id]             VARCHAR(20)    NOT NULL PRIMARY KEY,
+    [eikon_id]              VARCHAR(30)    NULL,
+    [employee_number]       VARCHAR(30)    NOT NULL,
+    [employee_name]         VARCHAR(150)   NOT NULL,
+    [employee_last_name]    VARCHAR(150)   NOT NULL,
+    [business_email]        VARCHAR(180)   NOT NULL,
+    [office]                VARCHAR(150)   NULL,
+    [department]            VARCHAR(150)   NOT NULL,
+    [current_position_title]    VARCHAR(150) NOT NULL,
+    [current_position_level]    VARCHAR(100) NULL,
+    [hiring_date_bns]       DATE           NULL,
+    [hiring_date_gbs]       DATE           NULL,
+    [hiring_date_aml]       DATE           NULL,
+    [supervisor_name]       VARCHAR(150)   NULL,
+    [supervisor_last_name]  VARCHAR(150)   NULL,
+    [address]               VARCHAR(255)   NULL,
+    [brigade]               VARCHAR(150)   NULL,
+    [begdate]               DATE           NULL,
+    [status]                VARCHAR(50)    NOT NULL,
+    [exit_date]             DATE           NULL,
+    [modality_as_today]     VARCHAR(120)   NULL,
+    [action_item]           VARCHAR(255)   NULL,
+    [exit_reason]           VARCHAR(255)   NULL,
+    [modality_reason]       VARCHAR(255)   NULL,
+    [gender]                VARCHAR(50)    NULL,
+    [dob]                   DATE           NULL,
+    [position_code]         VARCHAR(60)    NULL
+);
+PRINT 'Tabla headcount_dr creada exitosamente';
+GO
+
+IF EXISTS (SELECT 1 FROM sys.synonyms WHERE name = 'headcount' AND schema_id = SCHEMA_ID('dbo'))
+    DROP SYNONYM [dbo].[headcount];
+GO
+CREATE SYNONYM [dbo].[headcount] FOR [dbo].[headcount_dr];
 GO
 
 -- =====================================================
 -- TABLA 2: APPLICATIONS (Aplicaciones y Accesos)
 -- =====================================================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[applications]') AND type in (N'U'))
+IF OBJECT_ID(N'[dbo].[applications_dr]', N'U') IS NOT NULL
 BEGIN
-    CREATE TABLE [dbo].[applications] (
-        [id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-        [jurisdiction] VARCHAR(100) NULL,
-        [unit] VARCHAR(100) NULL,
-        [subunit] VARCHAR(100) NULL,
-        [unidad_subunidad] VARCHAR(150) NULL,
-        [logical_access_name] VARCHAR(150) NOT NULL,
-        [alias] VARCHAR(150) NULL,
-        [path_email_url] VARCHAR(255) NULL,
-        [position_role] VARCHAR(100) NULL,
-        [exception_tracking] VARCHAR(255) NULL,
-        [fulfillment_action] VARCHAR(255) NULL,
-        [system_owner] VARCHAR(100) NULL,
-        [role_name] VARCHAR(100) NULL,
-        [access_type] VARCHAR(50) NULL,
-        [category] VARCHAR(100) NULL,
-        [additional_data] VARCHAR(255) NULL,
-        [ad_code] VARCHAR(100) NULL,
-        [access_status] VARCHAR(50) NULL,
-        [last_update_date] DATETIME2 NULL,
-        [require_licensing] VARCHAR(255) NULL,
-        [description] NVARCHAR(MAX) NULL,
-        [authentication_method] VARCHAR(100) NULL
-    );
-    PRINT 'Tabla applications creada exitosamente';
+    DROP TABLE [dbo].[applications_dr];
+    PRINT 'Tabla applications existente eliminada (se recreará con el esquema actual).';
 END
-ELSE
-BEGIN
-    PRINT 'Tabla applications ya existe';
-    -- Agregar columna unidad_subunidad si no existe
-    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[applications]') AND name = 'unidad_subunidad')
-    BEGIN
-        ALTER TABLE [dbo].[applications]
-        ADD [unidad_subunidad] VARCHAR(150) NULL;
-        PRINT 'Columna unidad_subunidad agregada a la tabla applications';
-    END
-END
+GO
+
+CREATE TABLE [dbo].[applications_dr] (
+    [id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [status] VARCHAR(50) NULL,
+    [unit] VARCHAR(150) NULL,
+    [service] VARCHAR(150) NULL,
+    [role] VARCHAR(150) NULL,
+    [system_jurisdiction] VARCHAR(150) NULL,
+    [name_element] VARCHAR(200) NOT NULL,
+    [type_of_element] VARCHAR(150) NULL,
+    [system_description] NVARCHAR(MAX) NULL,
+    [information_needed] NVARCHAR(MAX) NULL,
+    [approval_needed] NVARCHAR(MAX) NULL,
+    [request_object] NVARCHAR(MAX) NULL,
+    [form_need_to_request_access] NVARCHAR(MAX) NULL,
+    [roles_and_profiles] NVARCHAR(MAX) NULL,
+    [how_to_request_system_access] NVARCHAR(MAX) NULL,
+    [how_to_remove_system_access] NVARCHAR(MAX) NULL,
+    [for_issues] NVARCHAR(MAX) NULL,
+    [critical_non_critical] VARCHAR(50) NULL,
+    [application_owner] VARCHAR(150) NULL,
+    [direct_contact] VARCHAR(150) NULL,
+    [sla_onboarding] VARCHAR(50) NULL,
+    [sla_offboarding] VARCHAR(50) NULL,
+    [system_application_link] VARCHAR(255) NULL,
+    [log_in_information] NVARCHAR(MAX) NULL,
+    [access_blocked_password] NVARCHAR(MAX) NULL,
+    [bulk_request] NVARCHAR(MAX) NULL,
+    [certification_process] NVARCHAR(MAX) NULL,
+    [license] NVARCHAR(MAX) NULL
+);
+PRINT 'Tabla applications_dr creada exitosamente';
+GO
+
+IF EXISTS (SELECT 1 FROM sys.synonyms WHERE name = 'applications' AND schema_id = SCHEMA_ID('dbo'))
+    DROP SYNONYM [dbo].[applications];
+GO
+CREATE SYNONYM [dbo].[applications] FOR [dbo].[applications_dr];
+GO
+
+-- =====================================================
+-- VISTAS DE COMPATIBILIDAD (mantienen nombres legacy)
+-- =====================================================
+IF OBJECT_ID(N'[dbo].[vw_headcount_legacy]', N'V') IS NOT NULL
+    DROP VIEW [dbo].[vw_headcount_legacy];
+GO
+CREATE VIEW [dbo].[vw_headcount_legacy] AS
+SELECT
+    h.scotia_id,
+    h.eikon_id,
+    h.employee_number,
+    h.employee_number AS employee,
+    CONCAT(h.employee_name, ' ', h.employee_last_name) AS full_name,
+    h.employee_name,
+    h.employee_last_name,
+    h.business_email AS email,
+    h.department AS unit,
+    h.department AS unidad_subunidad,
+    h.current_position_title AS position,
+    h.current_position_title AS position_role,
+    h.current_position_level,
+    h.status,
+    CASE WHEN h.status IN ('Active', 'Activo') THEN 1 ELSE 0 END AS activo,
+    h.exit_date AS inactivation_date,
+    h.modality_as_today,
+    h.action_item,
+    h.exit_reason,
+    h.modality_reason,
+    h.gender,
+    h.dob,
+    h.office,
+    h.brigade,
+    h.begdate,
+    h.position_code
+FROM dbo.headcount_dr h;
+GO
+
+IF OBJECT_ID(N'[dbo].[vw_applications_legacy]', N'V') IS NOT NULL
+    DROP VIEW [dbo].[vw_applications_legacy];
+GO
+CREATE VIEW [dbo].[vw_applications_legacy] AS
+SELECT
+    a.id,
+    a.status AS access_status,
+    a.unit,
+    a.service AS subunit,
+    CONCAT(
+        ISNULL(a.unit, ''),
+        CASE WHEN a.unit IS NOT NULL AND a.service IS NOT NULL THEN '/' ELSE '' END,
+        ISNULL(a.service, '')
+    ) AS unidad_subunidad,
+    a.role AS position_role,
+    a.roles_and_profiles AS role_name,
+    a.name_element AS logical_access_name,
+    a.type_of_element AS access_type,
+    a.critical_non_critical AS category,
+    a.application_owner AS system_owner,
+    a.system_description AS description,
+    a.system_application_link,
+    a.log_in_information,
+    a.direct_contact,
+    a.sla_onboarding,
+    a.sla_offboarding,
+    a.bulk_request,
+    a.certification_process,
+    a.license
+FROM dbo.applications_dr a;
 GO
 
 -- =====================================================
 -- TABLA 3: HISTORICO (Historial de Procesos)
 -- =====================================================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[historico]') AND type in (N'U'))
+IF OBJECT_ID(N'[dbo].[historico_dr]', N'U') IS NOT NULL
 BEGIN
-    CREATE TABLE [dbo].[historico] (
-        [id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-        [scotia_id] VARCHAR(20) NOT NULL,
-        [employee_email] VARCHAR(150) NULL,
-        [case_id] VARCHAR(100) NULL,
-        [responsible] VARCHAR(100) NULL,
-        [record_date] DATETIME2 NOT NULL DEFAULT GETDATE(),
-        [request_date] DATE NULL,
-        [process_access] VARCHAR(50) NULL,
-        [subunit] VARCHAR(100) NULL,
-        [event_description] NVARCHAR(MAX) NULL,
-        [ticket_email] VARCHAR(150) NULL,
-        [app_access_name] VARCHAR(150) NULL,
-        [computer_system_type] VARCHAR(100) NULL,
-        [duration_of_access] VARCHAR(50) NULL,
-        [status] VARCHAR(50) NULL,
-        [closing_date_app] DATE NULL,
-        [closing_date_ticket] DATE NULL,
-        [app_quality] VARCHAR(50) NULL,
-        [confirmation_by_user] DATE NULL,
-        [comment] NVARCHAR(MAX) NULL,
-        [comment_tq] NVARCHAR(MAX) NULL,
-        [ticket_quality] VARCHAR(50) NULL,
-        [general_status_ticket] VARCHAR(50) NULL,
-        [general_status_case] VARCHAR(50) NULL,
-        [average_time_open_ticket] VARCHAR(20) NULL,
-        [sla_app] VARCHAR(50) NULL,
-        [sla_ticket] VARCHAR(50) NULL,
-        [sla_case] VARCHAR(50) NULL
-    );
-    PRINT 'Tabla historico creada exitosamente';
+    DROP TABLE [dbo].[historico_dr];
+    PRINT 'Tabla historico existente eliminada.';
 END
-ELSE
-BEGIN
-    PRINT 'Tabla historico ya existe';
-    -- Agregar campos faltantes si no existen
-    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[historico]') AND name = 'duration_of_access')
-    BEGIN
-        ALTER TABLE [dbo].[historico] ADD [duration_of_access] VARCHAR(50) NULL;
-        PRINT 'Columna duration_of_access agregada a la tabla historico';
-    END
-    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[historico]') AND name = 'comment_tq')
-    BEGIN
-        ALTER TABLE [dbo].[historico] ADD [comment_tq] NVARCHAR(MAX) NULL;
-        PRINT 'Columna comment_tq agregada a la tabla historico';
-    END
-    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[historico]') AND name = 'general_status_ticket')
-    BEGIN
-        ALTER TABLE [dbo].[historico] ADD [general_status_ticket] VARCHAR(50) NULL;
-        PRINT 'Columna general_status_ticket agregada a la tabla historico';
-    END
-    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[historico]') AND name = 'general_status_case')
-    BEGIN
-        ALTER TABLE [dbo].[historico] ADD [general_status_case] VARCHAR(50) NULL;
-        PRINT 'Columna general_status_case agregada a la tabla historico';
-    END
-    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[historico]') AND name = 'sla_app')
-    BEGIN
-        ALTER TABLE [dbo].[historico] ADD [sla_app] VARCHAR(50) NULL;
-        PRINT 'Columna sla_app agregada a la tabla historico';
-    END
-    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[historico]') AND name = 'sla_ticket')
-    BEGIN
-        ALTER TABLE [dbo].[historico] ADD [sla_ticket] VARCHAR(50) NULL;
-        PRINT 'Columna sla_ticket agregada a la tabla historico';
-    END
-    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[historico]') AND name = 'sla_case')
-    BEGIN
-        ALTER TABLE [dbo].[historico] ADD [sla_case] VARCHAR(50) NULL;
-        PRINT 'Columna sla_case agregada a la tabla historico';
-    END
-    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[historico]') AND name = 'employee_email')
-    BEGIN
-        ALTER TABLE [dbo].[historico] ADD [employee_email] VARCHAR(150) NULL;
-        PRINT 'Columna employee_email agregada a la tabla historico';
-    END
-    -- Eliminar campos que sobran si existen
-    IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[historico]') AND name = 'sid')
-    BEGIN
-        ALTER TABLE [dbo].[historico] DROP COLUMN [sid];
-        PRINT 'Columna sid eliminada de la tabla historico';
-    END
-    IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[historico]') AND name = 'area')
-    BEGIN
-        ALTER TABLE [dbo].[historico] DROP COLUMN [area];
-        PRINT 'Columna area eliminada de la tabla historico';
-    END
-END
+GO
+
+CREATE TABLE [dbo].[historico_dr] (
+    [id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [scotia_id] VARCHAR(20) NOT NULL,
+    [employee_email] VARCHAR(150) NULL,
+    [case_id] VARCHAR(100) NULL,
+    [responsible] VARCHAR(100) NULL,
+    [record_date] DATETIME2 NOT NULL DEFAULT GETDATE(),
+    [request_date] DATE NULL,
+    [process_access] VARCHAR(50) NULL,
+    [subunit] VARCHAR(100) NULL,
+    [event_description] NVARCHAR(MAX) NULL,
+    [ticket_email] VARCHAR(150) NULL,
+    [app_access_name] VARCHAR(150) NULL,
+    [computer_system_type] VARCHAR(100) NULL,
+    [duration_of_access] VARCHAR(50) NULL,
+    [status] VARCHAR(50) NULL,
+    [closing_date_app] DATE NULL,
+    [closing_date_ticket] DATE NULL,
+    [app_quality] VARCHAR(50) NULL,
+    [confirmation_by_user] DATE NULL,
+    [comment] NVARCHAR(MAX) NULL,
+    [comment_tq] NVARCHAR(MAX) NULL,
+    [ticket_quality] VARCHAR(50) NULL,
+    [general_status_ticket] VARCHAR(50) NULL,
+    [general_status_case] VARCHAR(50) NULL,
+    [average_time_open_ticket] VARCHAR(20) NULL,
+    [sla_app] VARCHAR(50) NULL,
+    [sla_ticket] VARCHAR(50) NULL,
+    [sla_case] VARCHAR(50) NULL
+);
+PRINT 'Tabla historico_dr creada exitosamente';
+GO
+
+IF EXISTS (SELECT 1 FROM sys.synonyms WHERE name = 'historico' AND schema_id = SCHEMA_ID('dbo'))
+    DROP SYNONYM [dbo].[historico];
+GO
+CREATE SYNONYM [dbo].[historico] FOR [dbo].[historico_dr];
 GO
 
 -- =====================================================
 -- TABLA 4: PROCESOS (Gestión de Procesos)
 -- =====================================================
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[procesos]') AND type in (N'U'))
+IF OBJECT_ID(N'[dbo].[procesos_dr]', N'U') IS NOT NULL
 BEGIN
-    CREATE TABLE [dbo].[procesos] (
-        [id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-        [sid] VARCHAR(20) NOT NULL,
-        [nueva_sub_unidad] VARCHAR(100) NULL,
-        [nuevo_cargo] VARCHAR(100) NULL,
-        [status] VARCHAR(50) NOT NULL DEFAULT 'Pendiente',
-        [request_date] DATE NULL,
-        [ingreso_por] VARCHAR(100) NULL,
-        [fecha_creacion] DATETIME2 NOT NULL DEFAULT GETDATE(),
-        [fecha_actualizacion] DATETIME2 NULL,
-        [tipo_proceso] VARCHAR(50) NULL,
-        [app_name] VARCHAR(150) NULL,
-        [mail] VARCHAR(150) NULL,
-        [closing_date_app] DATE NULL,
-        [app_quality] VARCHAR(50) NULL,
-        [confirmation_by_user] VARCHAR(50) NULL,
-        [comment] NVARCHAR(MAX) NULL
-    );
-    PRINT 'Tabla procesos creada exitosamente';
+    DROP TABLE [dbo].[procesos_dr];
+    PRINT 'Tabla procesos existente eliminada.';
 END
-ELSE
-BEGIN
-    PRINT 'Tabla procesos ya existe';
-END
+GO
+
+CREATE TABLE [dbo].[procesos_dr] (
+    [id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [sid] VARCHAR(20) NOT NULL,
+    [nueva_sub_unidad] VARCHAR(100) NULL,
+    [nuevo_cargo] VARCHAR(100) NULL,
+    [status] VARCHAR(50) NOT NULL DEFAULT 'Pendiente',
+    [request_date] DATE NULL,
+    [ingreso_por] VARCHAR(100) NULL,
+    [fecha_creacion] DATETIME2 NOT NULL DEFAULT GETDATE(),
+    [fecha_actualizacion] DATETIME2 NULL,
+    [tipo_proceso] VARCHAR(50) NULL,
+    [app_name] VARCHAR(150) NULL,
+    [mail] VARCHAR(150) NULL,
+    [closing_date_app] DATE NULL,
+    [app_quality] VARCHAR(50) NULL,
+    [confirmation_by_user] DATE NULL,
+    [comment] NVARCHAR(MAX) NULL
+);
+PRINT 'Tabla procesos_dr creada exitosamente';
+GO
+
+IF EXISTS (SELECT 1 FROM sys.synonyms WHERE name = 'procesos' AND schema_id = SCHEMA_ID('dbo'))
+    DROP SYNONYM [dbo].[procesos];
+GO
+CREATE SYNONYM [dbo].[procesos] FOR [dbo].[procesos_dr];
 GO
 
 -- =====================================================
@@ -237,9 +337,9 @@ GO
 -- Foreign Key para historico -> headcount
 IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_historico_headcount')
 BEGIN
-    ALTER TABLE [dbo].[historico]
-    ADD CONSTRAINT [FK_historico_headcount] 
-    FOREIGN KEY ([scotia_id]) REFERENCES [dbo].[headcount]([scotia_id]) ON DELETE CASCADE;
+ALTER TABLE [dbo].[historico_dr]
+ADD CONSTRAINT [FK_historico_headcount] 
+FOREIGN KEY ([scotia_id]) REFERENCES [dbo].[headcount_dr]([scotia_id]) ON DELETE CASCADE;
     PRINT 'Foreign Key FK_historico_headcount creada exitosamente';
 END
 GO
@@ -259,9 +359,9 @@ GO
 -- Foreign Key para procesos -> headcount
 IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_procesos_headcount')
 BEGIN
-    ALTER TABLE [dbo].[procesos]
-    ADD CONSTRAINT [FK_procesos_headcount] 
-    FOREIGN KEY ([sid]) REFERENCES [dbo].[headcount]([scotia_id]) ON DELETE CASCADE;
+ALTER TABLE [dbo].[procesos_dr]
+ADD CONSTRAINT [FK_procesos_headcount] 
+FOREIGN KEY ([sid]) REFERENCES [dbo].[headcount_dr]([scotia_id]) ON DELETE CASCADE;
     PRINT 'Foreign Key FK_procesos_headcount creada exitosamente';
 END
 GO
@@ -271,67 +371,74 @@ GO
 -- =====================================================
 
 -- Índices para headcount
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_headcount_unit_position' AND object_id = OBJECT_ID(N'[dbo].[headcount]'))
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_headcount_department_title' AND object_id = OBJECT_ID(N'[dbo].[headcount_dr]'))
 BEGIN
-    CREATE INDEX IX_headcount_unit_position ON [dbo].[headcount] ([unit], [position]);
-    PRINT 'Índice IX_headcount_unit_position creado exitosamente';
+    CREATE INDEX IX_headcount_department_title ON [dbo].[headcount_dr] ([department], [current_position_title]);
+    PRINT 'Índice IX_headcount_department_title creado exitosamente';
 END
 GO
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_headcount_unidad_subunidad_position' AND object_id = OBJECT_ID(N'[dbo].[headcount]'))
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_headcount_level_code' AND object_id = OBJECT_ID(N'[dbo].[headcount_dr]'))
 BEGIN
-    CREATE INDEX IX_headcount_unidad_subunidad_position ON [dbo].[headcount] ([unidad_subunidad], [position]);
-    PRINT 'Índice IX_headcount_unidad_subunidad_position creado exitosamente';
+    CREATE INDEX IX_headcount_level_code ON [dbo].[headcount_dr] ([current_position_level], [position_code]);
+    PRINT 'Índice IX_headcount_level_code creado exitosamente';
 END
 GO
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_headcount_activo' AND object_id = OBJECT_ID(N'[dbo].[headcount]'))
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_headcount_status' AND object_id = OBJECT_ID(N'[dbo].[headcount_dr]'))
 BEGIN
-    CREATE INDEX IX_headcount_activo ON [dbo].[headcount] ([activo]);
-    PRINT 'Índice IX_headcount_activo creado exitosamente';
+    CREATE INDEX IX_headcount_status ON [dbo].[headcount_dr] ([status]);
+    PRINT 'Índice IX_headcount_status creado exitosamente';
 END
 GO
 
 -- Índices para applications
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_applications_unit_position' AND object_id = OBJECT_ID(N'[dbo].[applications]'))
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_applications_unit_role' AND object_id = OBJECT_ID(N'[dbo].[applications_dr]'))
 BEGIN
-    CREATE INDEX IX_applications_unit_position ON [dbo].[applications] ([unit], [position_role]);
-    PRINT 'Índice IX_applications_unit_position creado exitosamente';
+    CREATE INDEX IX_applications_unit_role ON [dbo].[applications_dr] ([unit], [role]);
+    PRINT 'Índice IX_applications_unit_role creado exitosamente';
 END
 GO
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_applications_unidad_subunidad_position' AND object_id = OBJECT_ID(N'[dbo].[applications]'))
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_applications_service_role' AND object_id = OBJECT_ID(N'[dbo].[applications_dr]'))
 BEGIN
-    CREATE INDEX IX_applications_unidad_subunidad_position ON [dbo].[applications] ([unidad_subunidad], [position_role]);
-    PRINT 'Índice IX_applications_unidad_subunidad_position creado exitosamente';
+    CREATE INDEX IX_applications_service_role ON [dbo].[applications_dr] ([service], [role]);
+    PRINT 'Índice IX_applications_service_role creado exitosamente';
 END
 GO
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_applications_access_status' AND object_id = OBJECT_ID(N'[dbo].[applications]'))
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_applications_status' AND object_id = OBJECT_ID(N'[dbo].[applications_dr]'))
 BEGIN
-    CREATE INDEX IX_applications_access_status ON [dbo].[applications] ([access_status]);
-    PRINT 'Índice IX_applications_access_status creado exitosamente';
+    CREATE INDEX IX_applications_status ON [dbo].[applications_dr] ([status]);
+    PRINT 'Índice IX_applications_status creado exitosamente';
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_applications_name_element' AND object_id = OBJECT_ID(N'[dbo].[applications_dr]'))
+BEGIN
+    CREATE INDEX IX_applications_name_element ON [dbo].[applications_dr] ([name_element]);
+    PRINT 'Índice IX_applications_name_element creado exitosamente';
 END
 GO
 
 -- Índices para historico
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_historico_scotia_status' AND object_id = OBJECT_ID(N'[dbo].[historico]'))
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_historico_scotia_status' AND object_id = OBJECT_ID(N'[dbo].[historico_dr]'))
 BEGIN
-    CREATE INDEX IX_historico_scotia_status ON [dbo].[historico] ([scotia_id], [status]);
+    CREATE INDEX IX_historico_scotia_status ON [dbo].[historico_dr] ([scotia_id], [status]);
     PRINT 'Índice IX_historico_scotia_status creado exitosamente';
 END
 GO
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_historico_process_status' AND object_id = OBJECT_ID(N'[dbo].[historico]'))
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_historico_process_status' AND object_id = OBJECT_ID(N'[dbo].[historico_dr]'))
 BEGIN
-    CREATE INDEX IX_historico_process_status ON [dbo].[historico] ([process_access], [status]);
+    CREATE INDEX IX_historico_process_status ON [dbo].[historico_dr] ([process_access], [status]);
     PRINT 'Índice IX_historico_process_status creado exitosamente';
 END
 GO
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_historico_record_date' AND object_id = OBJECT_ID(N'[dbo].[historico]'))
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_historico_record_date' AND object_id = OBJECT_ID(N'[dbo].[historico_dr]'))
 BEGIN
-    CREATE INDEX IX_historico_record_date ON [dbo].[historico] ([record_date]);
+    CREATE INDEX IX_historico_record_date ON [dbo].[historico_dr] ([record_date]);
     PRINT 'Índice IX_historico_record_date creado exitosamente';
 END
 GO
@@ -346,78 +453,77 @@ BEGIN
     EXEC('CREATE VIEW [dbo].[vw_required_apps] AS
     SELECT 
         h.scotia_id,
-        h.unit,
-        h.unidad_subunidad,
-        h.position,
-        a.logical_access_name,
-        a.subunit,
-        a.position_role,
-        a.role_name,
-        a.system_owner,
-        a.access_type,
-        a.category,
-        a.description
+        h.department,
+        h.current_position_title,
+        h.current_position_level,
+        h.position_code,
+        a.name_element,
+        a.unit,
+        a.service,
+        a.role,
+        a.type_of_element,
+        a.application_owner,
+        a.system_description
     FROM [dbo].[headcount] h
     INNER JOIN (
         SELECT DISTINCT
-            logical_access_name,
+            name_element,
             unit,
-            unidad_subunidad,
-            position_role,
-            subunit,
-            role_name,
-            system_owner,
-            access_type,
-            category,
-            description
+            service,
+            role,
+            type_of_element,
+            application_owner,
+            system_description,
+            status
         FROM [dbo].[applications]
-        WHERE access_status = ''Activo''
+        WHERE status IN (''Active'', ''Activo'')
     ) a ON 
-        UPPER(LTRIM(RTRIM(h.unidad_subunidad))) = UPPER(LTRIM(RTRIM(a.unidad_subunidad))) AND
-        UPPER(LTRIM(RTRIM(h.position))) = UPPER(LTRIM(RTRIM(a.position_role)))
-    WHERE h.activo = 1
-    GROUP BY h.scotia_id, a.logical_access_name, h.unit, h.unidad_subunidad, h.position, a.subunit, a.position_role, 
-             a.role_name, a.system_owner, a.access_type, a.category, a.description');
+        UPPER(LTRIM(RTRIM(ISNULL(h.department, '''')))) = UPPER(LTRIM(RTRIM(ISNULL(a.unit, ''''))))
+        AND UPPER(LTRIM(RTRIM(ISNULL(h.current_position_title, '''')))) = UPPER(LTRIM(RTRIM(ISNULL(a.role, ''''))))
+        AND UPPER(LTRIM(RTRIM(ISNULL(h.current_position_level, '''')))) = UPPER(LTRIM(RTRIM(ISNULL(a.service, ''''))))
+        AND UPPER(LTRIM(RTRIM(ISNULL(h.position_code, '''')))) = UPPER(LTRIM(RTRIM(ISNULL(a.type_of_element, ''''))))
+    WHERE h.status IN (''Active'', ''Activo'')
+    GROUP BY h.scotia_id, h.department, h.current_position_title, h.current_position_level, h.position_code,
+             a.name_element, a.unit, a.service, a.role, a.type_of_element, a.application_owner, a.system_description');
     PRINT 'Vista vw_required_apps creada exitosamente';
 END
 ELSE
 BEGIN
-    -- Actualizar vista existente
     EXEC('ALTER VIEW [dbo].[vw_required_apps] AS
     SELECT 
         h.scotia_id,
-        h.unit,
-        h.unidad_subunidad,
-        h.position,
-        a.logical_access_name,
-        a.subunit,
-        a.position_role,
-        a.role_name,
-        a.system_owner,
-        a.access_type,
-        a.category,
-        a.description
+        h.department,
+        h.current_position_title,
+        h.current_position_level,
+        h.position_code,
+        a.name_element,
+        a.unit,
+        a.service,
+        a.role,
+        a.type_of_element,
+        a.application_owner,
+        a.system_description
     FROM [dbo].[headcount] h
     INNER JOIN (
         SELECT DISTINCT
-            logical_access_name,
+            name_element,
             unit,
-            unidad_subunidad,
-            position_role,
-            subunit,
-            role_name,
-            system_owner,
-            access_type,
-            category,
-            description
+            service,
+            role,
+            type_of_element,
+            application_owner,
+            system_description,
+            status
         FROM [dbo].[applications]
-        WHERE access_status = ''Activo''
+        WHERE status IN (''Active'', ''Activo'')
     ) a ON 
-        UPPER(LTRIM(RTRIM(h.unidad_subunidad))) = UPPER(LTRIM(RTRIM(a.unidad_subunidad))) AND
-        UPPER(LTRIM(RTRIM(h.position))) = UPPER(LTRIM(RTRIM(a.position_role)))
-    WHERE h.activo = 1
-    GROUP BY h.scotia_id, a.logical_access_name, h.unit, h.unidad_subunidad, h.position, a.subunit, a.position_role, 
-             a.role_name, a.system_owner, a.access_type, a.category, a.description');
+        UPPER(LTRIM(RTRIM(ISNULL(h.department, '''')))) = UPPER(LTRIM(RTRIM(ISNULL(a.unit, ''''))))
+        AND UPPER(LTRIM(RTRIM(ISNULL(h.current_position_title, '''')))) = UPPER(LTRIM(RTRIM(ISNULL(a.role, ''''))))
+        AND UPPER(LTRIM(RTRIM(ISNULL(h.current_position_level, '''')))) = UPPER(LTRIM(RTRIM(ISNULL(a.service, ''''))))
+        AND UPPER(LTRIM(RTRIM(ISNULL(h.position_code, '''')))) = UPPER(LTRIM(RTRIM(ISNULL(a.type_of_element, ''''))))
+    WHERE h.status IN (''Active'', ''Activo'')
+    GROUP BY h.scotia_id, h.department, h.current_position_title, h.current_position_level, h.position_code,
+             a.name_element, a.unit, a.service, a.role, a.type_of_element, a.application_owner, a.system_description');
     PRINT 'Vista vw_required_apps actualizada exitosamente';
 END
 GO
@@ -428,20 +534,21 @@ BEGIN
     EXEC('CREATE VIEW [dbo].[vw_current_access] AS
     SELECT 
         h.scotia_id,
-        head.unit,
-        head.position,
-        h.app_access_name as logical_access_name,
+        hc.department,
+        hc.current_position_title,
+        hc.current_position_level,
+        hc.position_code,
+        h.app_access_name AS name_element,
         h.subunit,
-        head.position as position_role,
         h.record_date,
         h.status
     FROM [dbo].[historico] h
-    INNER JOIN [dbo].[headcount] head ON h.scotia_id = head.scotia_id
-    WHERE h.status = ''Completado''
+    INNER JOIN [dbo].[headcount] hc ON h.scotia_id = hc.scotia_id
+    WHERE h.status IN (''closed completed'', ''Completado'')
     AND h.process_access IN (''onboarding'', ''lateral_movement'')
-    AND head.activo = 1
+    AND hc.status IN (''Active'', ''Activo'')
     AND h.app_access_name IS NOT NULL
-    GROUP BY h.scotia_id, h.app_access_name, head.unit, head.position, h.subunit, h.record_date, h.status');
+    GROUP BY h.scotia_id, h.app_access_name, hc.department, hc.current_position_title, hc.current_position_level, hc.position_code, h.subunit, h.record_date, h.status');
     PRINT 'Vista vw_current_access creada exitosamente';
 END
 ELSE
@@ -450,20 +557,21 @@ BEGIN
     EXEC('ALTER VIEW [dbo].[vw_current_access] AS
     SELECT 
         h.scotia_id,
-        head.unit,
-        head.position,
-        h.app_access_name as logical_access_name,
+        hc.department,
+        hc.current_position_title,
+        hc.current_position_level,
+        hc.position_code,
+        h.app_access_name AS name_element,
         h.subunit,
-        head.position as position_role,
         h.record_date,
         h.status
     FROM [dbo].[historico] h
-    INNER JOIN [dbo].[headcount] head ON h.scotia_id = head.scotia_id
-    WHERE h.status = ''Completado''
+    INNER JOIN [dbo].[headcount] hc ON h.scotia_id = hc.scotia_id
+    WHERE h.status IN (''closed completed'', ''Completado'')
     AND h.process_access IN (''onboarding'', ''lateral_movement'')
-    AND head.activo = 1
+    AND hc.status IN (''Active'', ''Activo'')
     AND h.app_access_name IS NOT NULL
-    GROUP BY h.scotia_id, h.app_access_name, head.unit, head.position, h.subunit, h.record_date, h.status');
+    GROUP BY h.scotia_id, h.app_access_name, hc.department, hc.current_position_title, hc.current_position_level, hc.position_code, h.subunit, h.record_date, h.status');
     PRINT 'Vista vw_current_access actualizada exitosamente';
 END
 GO
@@ -474,18 +582,20 @@ BEGIN
     EXEC('CREATE VIEW [dbo].[vw_to_grant] AS
     SELECT 
         req.scotia_id,
+        req.department,
+        req.current_position_title,
+        req.current_position_level,
+        req.position_code,
+        req.name_element,
         req.unit,
-        req.position,
-        req.logical_access_name,
-        req.subunit,
-        req.position_role,
-        ''onboarding'' as process_type
+        req.service,
+        req.role,
+        req.type_of_element,
+        ''onboarding'' AS process_type
     FROM [dbo].[vw_required_apps] req
     LEFT JOIN [dbo].[vw_current_access] curr ON 
         req.scotia_id = curr.scotia_id AND
-        UPPER(LTRIM(RTRIM(req.logical_access_name))) = UPPER(LTRIM(RTRIM(curr.logical_access_name))) AND
-        UPPER(LTRIM(RTRIM(req.unit))) = UPPER(LTRIM(RTRIM(curr.unit))) AND
-        UPPER(LTRIM(RTRIM(req.position))) = UPPER(LTRIM(RTRIM(curr.position)))
+        UPPER(LTRIM(RTRIM(req.name_element))) = UPPER(LTRIM(RTRIM(curr.name_element)))
     WHERE curr.scotia_id IS NULL');
     PRINT 'Vista vw_to_grant creada exitosamente';
 END
@@ -495,18 +605,20 @@ BEGIN
     EXEC('ALTER VIEW [dbo].[vw_to_grant] AS
     SELECT 
         req.scotia_id,
+        req.department,
+        req.current_position_title,
+        req.current_position_level,
+        req.position_code,
+        req.name_element,
         req.unit,
-        req.position,
-        req.logical_access_name,
-        req.subunit,
-        req.position_role,
-        ''onboarding'' as process_type
+        req.service,
+        req.role,
+        req.type_of_element,
+        ''onboarding'' AS process_type
     FROM [dbo].[vw_required_apps] req
     LEFT JOIN [dbo].[vw_current_access] curr ON 
         req.scotia_id = curr.scotia_id AND
-        UPPER(LTRIM(RTRIM(req.logical_access_name))) = UPPER(LTRIM(RTRIM(curr.logical_access_name))) AND
-        UPPER(LTRIM(RTRIM(req.unit))) = UPPER(LTRIM(RTRIM(curr.unit))) AND
-        UPPER(LTRIM(RTRIM(req.position))) = UPPER(LTRIM(RTRIM(curr.position)))
+        UPPER(LTRIM(RTRIM(req.name_element))) = UPPER(LTRIM(RTRIM(curr.name_element)))
     WHERE curr.scotia_id IS NULL');
     PRINT 'Vista vw_to_grant actualizada exitosamente';
 END
@@ -518,19 +630,18 @@ BEGIN
     EXEC('CREATE VIEW [dbo].[vw_to_revoke] AS
     SELECT 
         curr.scotia_id,
-        curr.unit,
-        curr.position,
-        curr.logical_access_name,
+        curr.department,
+        curr.current_position_title,
+        curr.current_position_level,
+        curr.position_code,
+        curr.name_element,
         curr.subunit,
-        curr.position_role,
         curr.record_date,
-        ''offboarding'' as process_type
+        ''offboarding'' AS process_type
     FROM [dbo].[vw_current_access] curr
     LEFT JOIN [dbo].[vw_required_apps] req ON 
         curr.scotia_id = req.scotia_id AND
-        UPPER(LTRIM(RTRIM(curr.logical_access_name))) = UPPER(LTRIM(RTRIM(req.logical_access_name))) AND
-        UPPER(LTRIM(RTRIM(curr.unit))) = UPPER(LTRIM(RTRIM(req.unit))) AND
-        UPPER(LTRIM(RTRIM(curr.position))) = UPPER(LTRIM(RTRIM(req.position)))
+        UPPER(LTRIM(RTRIM(curr.name_element))) = UPPER(LTRIM(RTRIM(req.name_element)))
     WHERE req.scotia_id IS NULL');
     PRINT 'Vista vw_to_revoke creada exitosamente';
 END
@@ -540,19 +651,18 @@ BEGIN
     EXEC('ALTER VIEW [dbo].[vw_to_revoke] AS
     SELECT 
         curr.scotia_id,
-        curr.unit,
-        curr.position,
-        curr.logical_access_name,
+        curr.department,
+        curr.current_position_title,
+        curr.current_position_level,
+        curr.position_code,
+        curr.name_element,
         curr.subunit,
-        curr.position_role,
         curr.record_date,
-        ''offboarding'' as process_type
+        ''offboarding'' AS process_type
     FROM [dbo].[vw_current_access] curr
     LEFT JOIN [dbo].[vw_required_apps] req ON 
         curr.scotia_id = req.scotia_id AND
-        UPPER(LTRIM(RTRIM(curr.logical_access_name))) = UPPER(LTRIM(RTRIM(req.logical_access_name))) AND
-        UPPER(LTRIM(RTRIM(curr.unit))) = UPPER(LTRIM(RTRIM(req.unit))) AND
-        UPPER(LTRIM(RTRIM(curr.position))) = UPPER(LTRIM(RTRIM(req.position)))
+        UPPER(LTRIM(RTRIM(curr.name_element))) = UPPER(LTRIM(RTRIM(req.name_element)))
     WHERE req.scotia_id IS NULL');
     PRINT 'Vista vw_to_revoke actualizada exitosamente';
 END
@@ -563,8 +673,8 @@ IF NOT EXISTS (SELECT * FROM sys.views WHERE name = 'vw_system_stats')
 BEGIN
     EXEC('CREATE VIEW [dbo].[vw_system_stats] AS
     SELECT 
-        (SELECT COUNT(*) FROM [dbo].[headcount] WHERE activo = 1) as empleados_activos,
-        (SELECT COUNT(*) FROM [dbo].[applications] WHERE access_status = ''Activo'') as aplicaciones_activas,
+        (SELECT COUNT(*) FROM [dbo].[headcount] WHERE status IN (''Active'', ''Activo'')) as empleados_activos,
+        (SELECT COUNT(*) FROM [dbo].[applications] WHERE status IN (''Active'', ''Activo'')) as aplicaciones_activas,
         (SELECT COUNT(*) FROM [dbo].[historico]) as total_historico,
         (SELECT COUNT(*) FROM [dbo].[procesos]) as total_procesos,
         (SELECT COUNT(*) FROM [dbo].[headcount]) as total_empleados,
@@ -621,7 +731,7 @@ BEGIN
                 position_role,
                 category,
                 ROW_NUMBER() OVER (PARTITION BY logical_access_name ORDER BY id) as rn
-            FROM [dbo].[applications]
+            FROM [dbo].[vw_applications_legacy]
         ) a ON h.app_access_name = a.logical_access_name AND a.rn = 1
         WHERE h.scotia_id = @scotia_id
         ORDER BY h.record_date DESC;
@@ -640,8 +750,8 @@ BEGIN
     AS
     BEGIN
         SELECT *
-        FROM [dbo].[applications]
-        WHERE access_status = ''Activo''
+        FROM [dbo].[vw_applications_legacy]
+        WHERE access_status IN (''Activo'', ''Active'')
         AND (@position IS NULL OR position_role = @position)
         AND (@unit IS NULL OR unit = @unit)
         AND (@subunit IS NULL OR subunit = @subunit)
@@ -677,56 +787,40 @@ PRINT 'Función fn_NormalizeText creada exitosamente';
 -- =====================================================
 
 -- Insertar datos de ejemplo en headcount
-IF NOT EXISTS (SELECT * FROM headcount WHERE scotia_id = 'EMP001')
+IF NOT EXISTS (SELECT * FROM headcount_dr WHERE scotia_id = 'EMP001')
 BEGIN
-    INSERT INTO [dbo].[headcount] (scotia_id, employee, full_name, email, position, manager, senior_manager, unit, unidad_subunidad, start_date, ceco, skip_level, cafe_alcides, parents, personal_email, size, birthday, validacion, activo, inactivation_date)
+    INSERT INTO [dbo].[headcount_dr] (
+        scotia_id, eikon_id, employee_number, employee_name, employee_last_name,
+        business_email, office, department, current_position_title, current_position_level,
+        hiring_date_bns, supervisor_name, supervisor_last_name, status
+    )
     VALUES 
-        ('EMP001', 'Juan Pérez', 'Juan Carlos Pérez García', 'juan.perez@empresa.com', 'Analista', 'María González', 'Carlos López', 'Tecnología', 'Tecnología/Desarrollo', '2023-01-15', 'CECO001', 'Nivel 1', 'Café 1', 'Padres', 'juan.personal@gmail.com', 'M', '1985-05-20', 'Validado', 1, NULL),
-        ('EMP002', 'María González', 'María Elena González López', 'maria.gonzalez@empresa.com', 'Analista Senior', 'Carlos López', 'Ana Martínez', 'Tecnología', 'Tecnología/Desarrollo', '2022-03-10', 'CECO002', 'Nivel 2', 'Café 2', 'Padres', 'maria.personal@gmail.com', 'L', '1980-08-15', 'Validado', 1, NULL),
-        ('EMP003', 'Carlos López', 'Carlos Alberto López Martínez', 'carlos.lopez@empresa.com', 'Gerente', 'Ana Martínez', 'Director', 'Tecnología', 'Tecnología/Desarrollo', '2021-06-01', 'CECO003', 'Nivel 3', 'Café 3', 'Padres', 'carlos.personal@gmail.com', 'XL', '1975-12-03', 'Validado', 1, NULL);
+        ('EMP001', 'EIK001', '1001', 'Juan', 'Pérez', 'juan.perez@empresa.com', 'Oficina Principal', 'Tecnología', 'Analista', 'Senior', '2023-01-15', 'María', 'González', 'Active'),
+        ('EMP002', 'EIK002', '1002', 'María', 'González', 'maria.gonzalez@empresa.com', 'Oficina Principal', 'Tecnología', 'Analista Senior', 'Senior', '2022-03-10', 'Carlos', 'López', 'Active'),
+        ('EMP003', 'EIK003', '1003', 'Carlos', 'López', 'carlos.lopez@empresa.com', 'Oficina Principal', 'Tecnología', 'Gerente', 'Director', '2021-06-01', 'Ana', 'Martínez', 'Active');
     PRINT 'Datos de ejemplo insertados en headcount';
 END
 GO
 
 -- Insertar datos de ejemplo en applications
-IF NOT EXISTS (SELECT * FROM applications WHERE logical_access_name = 'Sistema de Gestión')
+IF NOT EXISTS (SELECT * FROM applications_dr WHERE name_element = 'Sistema de Gestión')
 BEGIN
-    INSERT INTO [dbo].[applications] (jurisdiction, unit, subunit, unidad_subunidad, logical_access_name, alias, path_email_url, position_role, exception_tracking, fulfillment_action, system_owner, role_name, access_type, category, additional_data, ad_code, access_status, last_update_date, require_licensing, description, authentication_method)
+    INSERT INTO [dbo].[applications_dr] (
+        status, unit, service, role, system_jurisdiction,
+        name_element, type_of_element, system_description,
+        application_owner, critical_non_critical, system_application_link
+    )
     VALUES 
-        -- TECNOLOGÍA - ANALISTA
-        ('Global', 'Tecnología', 'Desarrollo', 'Tecnología/Desarrollo', 'Sistema de Gestión', 'SIS-GEST', 'https://sistema.empresa.com', 'Analista', 'TRK001', 'Crear usuario', 'Admin Sistema', 'Usuario', 'Aplicación', 'Sistemas', 'Datos adicionales', 'AD001', 'Activo', GETDATE(), 'Licencia estándar', 'Sistema principal de gestión empresarial', 'LDAP'),
-        ('Global', 'Tecnología', 'Desarrollo', 'Tecnología/Desarrollo', 'GitLab', 'GIT-REPO', 'https://gitlab.empresa.com', 'Analista', 'TRK002', 'Crear usuario', 'Admin GitLab', 'Developer', 'Aplicación', 'Desarrollo', 'Datos adicionales', 'AD002', 'Activo', GETDATE(), 'Licencia estándar', 'Repositorio de código fuente', 'LDAP'),
-        ('Global', 'Tecnología', 'Desarrollo', 'Tecnología/Desarrollo', 'Jira', 'JIRA-PROJ', 'https://jira.empresa.com', 'Analista', 'TRK003', 'Asignar acceso', 'Admin Jira', 'Developer', 'Aplicación', 'Gestión', 'Datos adicionales', 'AD003', 'Activo', GETDATE(), 'Licencia estándar', 'Gestión de proyectos y tickets', 'LDAP'),
-        
-        -- TECNOLOGÍA - ANALISTA SENIOR
-        ('Global', 'Tecnología', 'Desarrollo', 'Tecnología/Desarrollo', 'Sistema de Gestión', 'SIS-GEST-ADM', 'https://sistema.empresa.com', 'Analista Senior', 'TRK004', 'Crear usuario', 'Admin Sistema', 'Administrador', 'Aplicación', 'Sistemas', 'Datos adicionales', 'AD004', 'Activo', GETDATE(), 'Licencia premium', 'Sistema principal de gestión empresarial', 'LDAP'),
-        ('Global', 'Tecnología', 'Desarrollo', 'Tecnología/Desarrollo', 'GitLab', 'GIT-REPO-ADM', 'https://gitlab.empresa.com', 'Analista Senior', 'TRK005', 'Crear usuario', 'Admin GitLab', 'Maintainer', 'Aplicación', 'Desarrollo', 'Datos adicionales', 'AD005', 'Activo', GETDATE(), 'Licencia premium', 'Repositorio de código fuente', 'LDAP'),
-        ('Global', 'Tecnología', 'Desarrollo', 'Tecnología/Desarrollo', 'Jira', 'JIRA-PROJ-ADM', 'https://jira.empresa.com', 'Analista Senior', 'TRK006', 'Asignar acceso', 'Admin Jira', 'Project Lead', 'Aplicación', 'Gestión', 'Datos adicionales', 'AD006', 'Activo', GETDATE(), 'Licencia premium', 'Gestión de proyectos y tickets', 'LDAP'),
-        ('Global', 'Tecnología', 'Desarrollo', 'Tecnología/Desarrollo', 'Docker Registry', 'DOCK-REG', 'https://registry.empresa.com', 'Analista Senior', 'TRK007', 'Crear usuario', 'Admin Docker', 'Maintainer', 'Aplicación', 'DevOps', 'Datos adicionales', 'AD007', 'Activo', GETDATE(), 'Licencia premium', 'Registro de contenedores Docker', 'LDAP'),
-        
-        -- TECNOLOGÍA - GERENTE
-        ('Global', 'Tecnología', 'Desarrollo', 'Tecnología/Desarrollo', 'Sistema de Gestión', 'SIS-GEST-MGR', 'https://sistema.empresa.com', 'Gerente', 'TRK008', 'Crear usuario', 'Admin Sistema', 'Manager', 'Aplicación', 'Sistemas', 'Datos adicionales', 'AD008', 'Activo', GETDATE(), 'Licencia premium', 'Sistema principal de gestión empresarial', 'LDAP'),
-        ('Global', 'Tecnología', 'Desarrollo', 'Tecnología/Desarrollo', 'GitLab', 'GIT-REPO-MGR', 'https://gitlab.empresa.com', 'Gerente', 'TRK009', 'Crear usuario', 'Admin GitLab', 'Owner', 'Aplicación', 'Desarrollo', 'Datos adicionales', 'AD009', 'Activo', GETDATE(), 'Licencia premium', 'Repositorio de código fuente', 'LDAP'),
-        ('Global', 'Tecnología', 'Desarrollo', 'Tecnología/Desarrollo', 'Jira', 'JIRA-PROJ-MGR', 'https://jira.empresa.com', 'Gerente', 'TRK010', 'Asignar acceso', 'Admin Jira', 'Administrator', 'Aplicación', 'Gestión', 'Datos adicionales', 'AD010', 'Activo', GETDATE(), 'Licencia premium', 'Gestión de proyectos y tickets', 'LDAP'),
-        ('Global', 'Tecnología', 'Desarrollo', 'Tecnología/Desarrollo', 'Power BI', 'POWER-BI', 'https://powerbi.empresa.com', 'Gerente', 'TRK011', 'Crear usuario', 'Admin PowerBI', 'Admin', 'Aplicación', 'Analytics', 'Datos adicionales', 'AD011', 'Activo', GETDATE(), 'Licencia premium', 'Herramienta de análisis de datos', 'LDAP'),
-        
-        -- RECURSOS HUMANOS - ANALISTA
-        ('Global', 'Recursos Humanos', 'RRHH', 'Recursos Humanos/RRHH', 'Sistema de Gestión', 'SIS-GEST-RRHH', 'https://sistema.empresa.com', 'Analista', 'TRK015', 'Crear usuario', 'Admin Sistema', 'Usuario', 'Aplicación', 'Sistemas', 'Datos adicionales', 'AD015', 'Activo', GETDATE(), 'Licencia estándar', 'Sistema principal de gestión empresarial', 'LDAP'),
-        ('Global', 'Recursos Humanos', 'RRHH', 'Recursos Humanos/RRHH', 'Workday', 'WD-RRHH', 'https://workday.empresa.com', 'Analista', 'TRK016', 'Crear usuario', 'Admin Workday', 'Analyst', 'Aplicación', 'RRHH', 'Datos adicionales', 'AD016', 'Activo', GETDATE(), 'Licencia estándar', 'Sistema de gestión de RRHH', 'LDAP'),
-        ('Global', 'Recursos Humanos', 'RRHH', 'Recursos Humanos/RRHH', 'SuccessFactors', 'SF-RRHH', 'https://successfactors.empresa.com', 'Analista', 'TRK017', 'Crear usuario', 'Admin SuccessFactors', 'Analyst', 'Aplicación', 'RRHH', 'Datos adicionales', 'AD017', 'Activo', GETDATE(), 'Licencia estándar', 'Gestión de talento y rendimiento', 'LDAP'),
-        
-        -- RECURSOS HUMANOS - GERENTE
-        ('Global', 'Recursos Humanos', 'RRHH', 'Recursos Humanos/RRHH', 'Sistema de Gestión', 'SIS-GEST-RRHH-MGR', 'https://sistema.empresa.com', 'Gerente', 'TRK018', 'Crear usuario', 'Admin Sistema', 'Manager', 'Aplicación', 'Sistemas', 'Datos adicionales', 'AD018', 'Activo', GETDATE(), 'Licencia premium', 'Sistema principal de gestión empresarial', 'LDAP'),
-        ('Global', 'Recursos Humanos', 'RRHH', 'Recursos Humanos/RRHH', 'Workday', 'WD-RRHH-MGR', 'https://workday.empresa.com', 'Gerente', 'TRK019', 'Crear usuario', 'Admin Workday', 'Manager', 'Aplicación', 'RRHH', 'Datos adicionales', 'AD019', 'Activo', GETDATE(), 'Licencia premium', 'Sistema de gestión de RRHH', 'LDAP'),
-        ('Global', 'Recursos Humanos', 'RRHH', 'Recursos Humanos/RRHH', 'SuccessFactors', 'SF-RRHH-MGR', 'https://successfactors.empresa.com', 'Gerente', 'TRK020', 'Crear usuario', 'Admin SuccessFactors', 'Manager', 'Aplicación', 'RRHH', 'Datos adicionales', 'AD020', 'Activo', GETDATE(), 'Licencia premium', 'Gestión de talento y rendimiento', 'LDAP');
+        ('Active', 'Tecnología', 'Desarrollo', 'Analista', 'Global', 'Sistema de Gestión', 'Aplicación', 'ERP corporativo', 'Admin Sistema', 'Crítico', 'https://sistema.empresa.com'),
+        ('Active', 'Tecnología', 'DevOps', 'Analista Senior', 'Global', 'GitLab', 'Aplicación', 'Repositorio de código', 'Admin DevOps', 'Crítico', 'https://gitlab.empresa.com');
     PRINT 'Datos de ejemplo insertados en applications';
 END
 GO
 
 -- Insertar datos de ejemplo en historico
-IF NOT EXISTS (SELECT * FROM historico WHERE scotia_id = 'EMP001')
+IF NOT EXISTS (SELECT * FROM historico_dr WHERE scotia_id = 'EMP001')
 BEGIN
-    INSERT INTO [dbo].[historico] (scotia_id, case_id, responsible, record_date, request_date, process_access, subunit, event_description, ticket_email, app_access_name, computer_system_type, duration_of_access, status, closing_date_app, closing_date_ticket, app_quality, confirmation_by_user, comment, comment_tq, ticket_quality, general_status_ticket, general_status_case, average_time_open_ticket, sla_app, sla_ticket, sla_case)
+    INSERT INTO [dbo].[historico_dr] (scotia_id, case_id, responsible, record_date, request_date, process_access, subunit, event_description, ticket_email, app_access_name, computer_system_type, duration_of_access, status, closing_date_app, closing_date_ticket, app_quality, confirmation_by_user, comment, comment_tq, ticket_quality, general_status_ticket, general_status_case, average_time_open_ticket, sla_app, sla_ticket, sla_case)
     VALUES 
         ('EMP001', 'CASE-20240115-001', 'Admin Sistema', GETDATE(), '2024-01-14', 'onboarding', 'Tecnología/Desarrollo', 'Usuario creado en sistema', 'admin@empresa.com', 'Sistema de Gestión', 'Sistemas', 'Permanente', 'Completado', '2024-01-15', '2024-01-15', 'Excelente', '2024-01-16', 'Usuario creado exitosamente', 'Ticket completado satisfactoriamente', 'Excelente', 'Completado', 'Completado', '00:30:00', 'Cumplido', 'Cumplido', 'Cumplido'),
         ('EMP002', 'CASE-20240115-002', 'Admin Portal', GETDATE(), '2024-01-14', 'onboarding', 'Tecnología/Desarrollo', 'Usuario creado en portal', 'admin@empresa.com', 'GitLab', 'Desarrollo', 'Permanente', 'Completado', '2024-01-15', '2024-01-15', 'Excelente', '2024-01-16', 'Usuario creado exitosamente', 'Ticket completado satisfactoriamente', 'Excelente', 'Completado', 'Completado', '00:45:00', 'Cumplido', 'Cumplido', 'Cumplido'),
@@ -740,10 +834,10 @@ GO
 -- =====================================================
 
 -- Migrar confirmation_by_user de VARCHAR a DATE en tabla historico
-IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[historico]') AND name = 'confirmation_by_user' AND system_type_id = 167)
+IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[historico_dr]') AND name = 'confirmation_by_user' AND system_type_id = 167)
 BEGIN
     PRINT 'Migrando confirmation_by_user de VARCHAR a DATE en tabla historico...';
-    ALTER TABLE [dbo].[historico] ALTER COLUMN [confirmation_by_user] DATE NULL;
+    ALTER TABLE [dbo].[historico_dr] ALTER COLUMN [confirmation_by_user] DATE NULL;
     PRINT 'Migración de historico completada';
 END
 ELSE
@@ -753,10 +847,10 @@ END
 GO
 
 -- Migrar confirmation_by_user de VARCHAR a DATE en tabla procesos
-IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[procesos]') AND name = 'confirmation_by_user' AND system_type_id = 167)
+IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[procesos_dr]') AND name = 'confirmation_by_user' AND system_type_id = 167)
 BEGIN
     PRINT 'Migrando confirmation_by_user de VARCHAR a DATE en tabla procesos...';
-    ALTER TABLE [dbo].[procesos] ALTER COLUMN [confirmation_by_user] DATE NULL;
+    ALTER TABLE [dbo].[procesos_dr] ALTER COLUMN [confirmation_by_user] DATE NULL;
     PRINT 'Migración de procesos completada';
 END
 ELSE
@@ -781,7 +875,7 @@ BEGIN
     
     -- Obtener datos del empleado
     SELECT @emp_unit = unit, @emp_position = position, @emp_unidad_subunidad = unidad_subunidad
-    FROM [dbo].[headcount] 
+    FROM [dbo].[vw_headcount_legacy]
     WHERE scotia_id = @scotia_id AND activo = 1;
     
     IF @emp_unit IS NULL OR @emp_position IS NULL
@@ -816,7 +910,7 @@ BEGIN
         h.record_date,
         h.status
     FROM [dbo].[historico] h
-    LEFT JOIN [dbo].[applications] a ON h.app_access_name = a.logical_access_name
+    LEFT JOIN [dbo].[vw_applications_legacy] a ON h.app_access_name = a.logical_access_name
     WHERE h.scotia_id = @scotia_id
     AND h.process_access IN ('onboarding', 'lateral_movement')
     AND h.app_access_name IS NOT NULL
@@ -834,8 +928,8 @@ BEGIN
         a.description,
         NULL as record_date,
         'Required' as status
-    FROM [dbo].[applications] a
-    WHERE a.access_status = 'Activo'
+    FROM [dbo].[vw_applications_legacy] a
+    WHERE a.access_status IN ('Activo','Active')
     AND a.unidad_subunidad = @emp_unidad_subunidad
     AND a.position_role = @emp_position;
     
@@ -923,14 +1017,15 @@ BEGIN
     
     -- Actualizar estado del empleado a activo
     UPDATE [dbo].[headcount] 
-    SET activo = 1, inactivation_date = NULL
+    SET status = 'Active', exit_date = NULL
     WHERE scotia_id = @scotia_id;
     
-    -- Actualizar posición, unidad y unidad_subunidad si están vacías
+    -- Actualizar posición y unidad si están vacías
     UPDATE [dbo].[headcount] 
-    SET position = @position, unit = @unit, unidad_subunidad = @unidad_subunidad
+    SET current_position_title = @position,
+        department = @unit
     WHERE scotia_id = @scotia_id 
-    AND (position IS NULL OR position = '' OR unit IS NULL OR unit = '' OR unidad_subunidad IS NULL OR unidad_subunidad = '');
+    AND (current_position_title IS NULL OR current_position_title = '' OR department IS NULL OR department = '');
     
     -- Obtener aplicaciones requeridas y crear registros históricos
     INSERT INTO [dbo].[historico] (
@@ -951,8 +1046,8 @@ BEGIN
         a.category,
         'Pendiente',
         'En Proceso'
-    FROM [dbo].[applications] a
-    WHERE a.access_status = 'Activo'
+    FROM [dbo].[vw_applications_legacy] a
+    WHERE a.access_status IN ('Activo','Active')
     AND a.unidad_subunidad = @unidad_subunidad
     AND a.position_role = @position
     AND NOT EXISTS (
@@ -994,7 +1089,7 @@ BEGIN
     
     -- Actualizar estado del empleado a inactivo
     UPDATE [dbo].[headcount] 
-    SET activo = 0, inactivation_date = GETDATE()
+    SET status = 'Inactive', exit_date = GETDATE()
     WHERE scotia_id = @scotia_id;
     
     -- Crear registros de offboarding para accesos activos
@@ -1017,7 +1112,7 @@ BEGIN
         'Pendiente',
         'En Proceso'
     FROM [dbo].[historico] h
-    LEFT JOIN [dbo].[applications] a ON h.app_access_name = a.logical_access_name
+    LEFT JOIN [dbo].[vw_applications_legacy] a ON h.app_access_name = a.logical_access_name
     WHERE h.scotia_id = @scotia_id
     AND h.process_access IN ('onboarding', 'lateral_movement')
     AND h.status = 'Completado'
@@ -1051,8 +1146,8 @@ BEGIN
         -- Estadísticas globales
         SELECT 
             'Global' as scope,
-            (SELECT COUNT(*) FROM [dbo].[headcount] WHERE activo = 1) as empleados_activos,
-            (SELECT COUNT(*) FROM [dbo].[applications] WHERE access_status = 'Activo') as aplicaciones_activas,
+            (SELECT COUNT(*) FROM [dbo].[headcount] WHERE status IN ('Active','Activo')) as empleados_activos,
+            (SELECT COUNT(*) FROM [dbo].[applications] WHERE status IN ('Active','Activo')) as aplicaciones_activas,
             (SELECT COUNT(*) FROM [dbo].[historico] WHERE status = 'Pendiente') as tickets_pendientes,
             (SELECT COUNT(*) FROM [dbo].[historico] WHERE status = 'Completado') as tickets_completados,
             (SELECT COUNT(*) FROM [dbo].[historico]) as total_historico;
@@ -1129,7 +1224,7 @@ SELECT 'vw_system_stats' as vista, COUNT(*) as registros FROM [dbo].[vw_system_s
 
 PRINT '=====================================================';
 PRINT 'CONFIGURACIÓN COMPLETADA EXITOSAMENTE';
-PRINT 'Base de datos: GAMLO_Empleados';
+PRINT 'Base de datos: GAMLO_Empleados_DR';
 PRINT 'Tablas creadas: headcount, applications, historico, procesos';
 PRINT 'Vistas creadas: vw_required_apps, vw_current_access, vw_to_grant, vw_to_revoke, vw_system_stats';
 PRINT 'Procedimientos básicos: sp_GetDatabaseStats, sp_GetEmployeeHistory, sp_GetApplicationsByPosition';

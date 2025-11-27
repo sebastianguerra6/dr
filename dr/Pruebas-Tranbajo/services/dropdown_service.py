@@ -44,10 +44,10 @@ class DropdownService:
             cursor = conn.cursor()
             
             cursor.execute("""
-                SELECT DISTINCT subunit 
+                SELECT DISTINCT service 
                 FROM applications 
-                WHERE subunit IS NOT NULL AND subunit != ''
-                ORDER BY subunit
+                WHERE service IS NOT NULL AND service != ''
+                ORDER BY service
             """)
             
             subunits = [row[0] for row in cursor.fetchall()]
@@ -66,10 +66,10 @@ class DropdownService:
             cursor = conn.cursor()
             
             cursor.execute("""
-                SELECT DISTINCT position_role 
+                SELECT DISTINCT role 
                 FROM applications 
-                WHERE position_role IS NOT NULL AND position_role != ''
-                ORDER BY position_role
+                WHERE role IS NOT NULL AND role != ''
+                ORDER BY role
             """)
             
             positions = [row[0] for row in cursor.fetchall()]
@@ -88,10 +88,10 @@ class DropdownService:
             cursor = conn.cursor()
             
             cursor.execute("""
-                SELECT DISTINCT role_name 
+                SELECT DISTINCT roles_and_profiles 
                 FROM applications 
-                WHERE role_name IS NOT NULL AND role_name != ''
-                ORDER BY role_name
+                WHERE roles_and_profiles IS NOT NULL AND roles_and_profiles != ''
+                ORDER BY roles_and_profiles
             """)
             
             roles = [row[0] for row in cursor.fetchall()]
@@ -110,10 +110,10 @@ class DropdownService:
             cursor = conn.cursor()
             
             cursor.execute("""
-                SELECT DISTINCT jurisdiction 
+                SELECT DISTINCT system_jurisdiction 
                 FROM applications 
-                WHERE jurisdiction IS NOT NULL AND jurisdiction != ''
-                ORDER BY jurisdiction
+                WHERE system_jurisdiction IS NOT NULL AND system_jurisdiction != ''
+                ORDER BY system_jurisdiction
             """)
             
             jurisdictions = [row[0] for row in cursor.fetchall()]
@@ -132,10 +132,10 @@ class DropdownService:
             cursor = conn.cursor()
             
             cursor.execute("""
-                SELECT DISTINCT system_owner 
+                SELECT DISTINCT application_owner 
                 FROM applications 
-                WHERE system_owner IS NOT NULL AND system_owner != ''
-                ORDER BY system_owner
+                WHERE application_owner IS NOT NULL AND application_owner != ''
+                ORDER BY application_owner
             """)
             
             owners = [row[0] for row in cursor.fetchall()]
@@ -154,10 +154,10 @@ class DropdownService:
             cursor = conn.cursor()
             
             cursor.execute("""
-                SELECT DISTINCT category 
+                SELECT DISTINCT critical_non_critical 
                 FROM applications 
-                WHERE category IS NOT NULL AND category != ''
-                ORDER BY category
+                WHERE critical_non_critical IS NOT NULL AND critical_non_critical != ''
+                ORDER BY critical_non_critical
             """)
             
             categories = [row[0] for row in cursor.fetchall()]
@@ -176,10 +176,10 @@ class DropdownService:
             cursor = conn.cursor()
             
             cursor.execute("""
-                SELECT DISTINCT access_type 
+                SELECT DISTINCT type_of_element 
                 FROM applications 
-                WHERE access_type IS NOT NULL AND access_type != ''
-                ORDER BY access_type
+                WHERE type_of_element IS NOT NULL AND type_of_element != ''
+                ORDER BY type_of_element
             """)
             
             access_types = [row[0] for row in cursor.fetchall()]
@@ -198,10 +198,10 @@ class DropdownService:
             cursor = conn.cursor()
             
             cursor.execute("""
-                SELECT DISTINCT access_status 
+                SELECT DISTINCT status 
                 FROM applications 
-                WHERE access_status IS NOT NULL AND access_status != ''
-                ORDER BY access_status
+                WHERE status IS NOT NULL AND status != ''
+                ORDER BY status
             """)
             
             statuses = [row[0] for row in cursor.fetchall()]
@@ -220,10 +220,10 @@ class DropdownService:
             cursor = conn.cursor()
             
             cursor.execute("""
-                SELECT DISTINCT authentication_method 
+                SELECT DISTINCT log_in_information 
                 FROM applications 
-                WHERE authentication_method IS NOT NULL AND authentication_method != ''
-                ORDER BY authentication_method
+                WHERE log_in_information IS NOT NULL AND log_in_information != ''
+                ORDER BY log_in_information
             """)
             
             methods = [row[0] for row in cursor.fetchall()]
@@ -243,9 +243,17 @@ class DropdownService:
             
             # Solo obtener de la tabla applications (que tiene las aplicaciones reales)
             cursor.execute("""
-                SELECT DISTINCT unidad_subunidad 
+                SELECT DISTINCT 
+                    CONCAT(
+                        ISNULL(unit, ''),
+                        CASE 
+                            WHEN unit IS NOT NULL AND service IS NOT NULL THEN ' / ' 
+                            ELSE '' 
+                        END,
+                        ISNULL(service, '')
+                    ) AS unidad_subunidad
                 FROM applications 
-                WHERE unidad_subunidad IS NOT NULL AND unidad_subunidad != ''
+                WHERE (unit IS NOT NULL AND unit != '') OR (service IS NOT NULL AND service != '')
                 ORDER BY unidad_subunidad
             """)
             

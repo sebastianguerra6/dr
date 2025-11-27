@@ -1881,55 +1881,64 @@ class CreacionPersonaFrame:
     def _crear_variables(self):
         """Crea las variables de control"""
         self.variables = {
-            # Campos básicos
+            # Campos básicos (nuevo esquema)
             'scotia_id': tk.StringVar(),
-            'employee': tk.StringVar(),
-            'full_name': tk.StringVar(),
-            'email': tk.StringVar(),
-            'position': tk.StringVar(),
-            'manager': tk.StringVar(),
-            'senior_manager': tk.StringVar(),
-            'unit': tk.StringVar(),
-            'unidad_subunidad': tk.StringVar(),
-            'start_date': tk.StringVar(),
-            'ceco': tk.StringVar(),
-            'skip_level': tk.StringVar(),
-            'cafe_alcides': tk.StringVar(),
-            'parents': tk.StringVar(),
-            'personal_email': tk.StringVar(),
-            'size': tk.StringVar(),
-            'birthday': tk.StringVar(),
-            'validacion': tk.StringVar(),
-            'activo': tk.StringVar(value="Active"),
-            'inactivation_date': tk.StringVar(),
+            'eikon_id': tk.StringVar(),
+            'employee_number': tk.StringVar(),
+            'employee_name': tk.StringVar(),
+            'employee_last_name': tk.StringVar(),
+            'business_email': tk.StringVar(),
+            'department': tk.StringVar(),
+            'office': tk.StringVar(),
+            'current_position_title': tk.StringVar(),
+            'current_position_level': tk.StringVar(),
+            'hiring_date_bns': tk.StringVar(),
+            'hiring_date_gbs': tk.StringVar(),
+            'hiring_date_aml': tk.StringVar(),
+            'supervisor_name': tk.StringVar(),
+            'supervisor_last_name': tk.StringVar(),
+            'address': tk.StringVar(),
+            'brigade': tk.StringVar(),
+            'begdate': tk.StringVar(),
+            'status': tk.StringVar(value="Active"),
+            'exit_date': tk.StringVar(),
+            'modality_as_today': tk.StringVar(),
+            'action_item': tk.StringVar(),
+            'exit_reason': tk.StringVar(),
+            'modality_reason': tk.StringVar(),
+            'gender': tk.StringVar(),
+            'dob': tk.StringVar(),
+            'position_code': tk.StringVar(),
             # Campos para filtros
             'filtro_texto': tk.StringVar(),
-            'columna_filtro': tk.StringVar(value="scotia_id")
+            'columna_filtro': tk.StringVar(value="SID")
         }
         
         # Variables para filtros múltiples
         self.filtros_activos = {}
         self.campos_filtro = {
             "SID": "scotia_id",
-            "Employee": "employee",
-            "Nombre Completo": "full_name",
-            "Email": "email",
-            "Posición": "position",
-            "Manager": "manager",
-            "Senior Manager": "senior_manager",
-            "Unidad": "unit",
-            "Unidad/Subunidad": "unidad_subunidad",
-            "Fecha de Inicio": "start_date",
-            "CECO": "ceco",
-            "Skip Level": "skip_level",
-            "Cafe Alcides": "cafe_alcides",
-            "Parents": "parents",
-            "Email Personal": "personal_email",
-            "Size": "size",
-            "Cumpleaños": "birthday",
-            "Validación": "validacion",
-            "Active": "activo",
-            "Fecha de Inactivación": "inactivation_date"
+            "Eikon ID": "eikon_id",
+            "Employee #": "employee_number",
+            "Nombre": "employee_name",
+            "Apellido": "employee_last_name",
+            "Business Email": "business_email",
+            "Departamento": "department",
+            "Oficina": "office",
+            "Cargo": "current_position_title",
+            "Nivel": "current_position_level",
+            "Estado": "status",
+            "Supervisor": "supervisor_name",
+            "Supervisor Apellido": "supervisor_last_name",
+            "Fecha Inicio (BNS)": "hiring_date_bns",
+            "Fecha Inicio (GBS)": "hiring_date_gbs",
+            "Fecha Inicio (AML)": "hiring_date_aml",
+            "Begdate": "begdate",
+            "Brigade": "brigade",
+            "Acción": "action_item",
+            "Motivo Salida": "exit_reason",
+            "Modality": "modality_as_today",
+            "Género": "gender"
         }
     
     def _crear_widgets(self):
@@ -1990,27 +1999,29 @@ class CreacionPersonaFrame:
         resultados_frame.rowconfigure(0, weight=1)
         
         # Crear Treeview para mostrar resultados
-        self.tree = ttk.Treeview(resultados_frame, columns=("SID", "Nombre", "Apellido", "Email", "Departamento", "Unidad/Subunidad", "Cargo", "Estado"), 
+        self.tree = ttk.Treeview(resultados_frame, columns=("SID", "Eikon", "Employee #", "Nombre", "Apellido", "Business Email", "Departamento", "Cargo", "Estado"), 
                                 show="headings", height=12)
         
         # Configurar columnas
         self.tree.heading("SID", text="SID")
+        self.tree.heading("Eikon", text="Eikon ID")
+        self.tree.heading("Employee #", text="Employee #")
         self.tree.heading("Nombre", text="Nombre")
         self.tree.heading("Apellido", text="Apellido")
-        self.tree.heading("Email", text="Email")
+        self.tree.heading("Business Email", text="Business Email")
         self.tree.heading("Departamento", text="Departamento")
-        self.tree.heading("Unidad/Subunidad", text="Unidad/Subunidad")
         self.tree.heading("Cargo", text="Cargo")
         self.tree.heading("Estado", text="Estado")
         
         # Configurar anchos de columna
         self.tree.column("SID", width=120, minwidth=100)
-        self.tree.column("Nombre", width=150, minwidth=120)
-        self.tree.column("Apellido", width=150, minwidth=120)
-        self.tree.column("Email", width=250, minwidth=200)
-        self.tree.column("Departamento", width=150, minwidth=120)
-        self.tree.column("Unidad/Subunidad", width=180, minwidth=150)
-        self.tree.column("Cargo", width=180, minwidth=150)
+        self.tree.column("Eikon", width=130, minwidth=100)
+        self.tree.column("Employee #", width=150, minwidth=120)
+        self.tree.column("Nombre", width=140, minwidth=120)
+        self.tree.column("Apellido", width=140, minwidth=120)
+        self.tree.column("Business Email", width=250, minwidth=200)
+        self.tree.column("Departamento", width=170, minwidth=140)
+        self.tree.column("Cargo", width=200, minwidth=160)
         self.tree.column("Estado", width=120, minwidth=100)
         
         # Scrollbars (vertical y horizontal)
@@ -2198,16 +2209,18 @@ class CreacionPersonaFrame:
             
             # Mapear nombres de columnas a campos de la base de datos real
             mapeo_columnas = {
-                "SID": "employee",
-                "Nombre": "full_name",
-                "Email": "email",
-                "Posición": "position",
-                "Manager": "manager",
-                "Unidad": "unit",
-                "Estado": "activo"
+                "SID": "scotia_id",
+                "Eikon ID": "eikon_id",
+                "Employee #": "employee_number",
+                "Nombre": "employee_name",
+                "Apellido": "employee_last_name",
+                "Business Email": "business_email",
+                "Departamento": "department",
+                "Cargo": "current_position_title",
+                "Estado": "status"
             }
             
-            campo_bd = mapeo_columnas.get(columna, "employee")
+            campo_bd = mapeo_columnas.get(columna, "scotia_id")
             
             # Aplicar filtro en memoria
             if todos_resultados:
@@ -2227,15 +2240,15 @@ class CreacionPersonaFrame:
     def _obtener_valor_persona(self, resultado, campo_bd: str) -> str:
         """Normaliza el valor del campo para filtros de personas."""
         valor = resultado.get(campo_bd, '')
-        if campo_bd == 'activo':
+        if campo_bd in ('activo', 'status'):
             if isinstance(valor, bool):
                 return 'active' if valor else 'inactive'
-            valor_str = str(valor).strip().lower()
+            valor_str = str(valor or '').strip().lower()
             if valor_str in ('1', 'true', 'active', 'activo', 'yes', 'sí', 'si'):
                 return 'active'
             if valor_str in ('0', 'false', 'inactive', 'inactivo', 'no'):
                 return 'inactive'
-            return valor_str
+            return valor_str or 'active'
         return str(valor).lower()
     
     def limpiar_filtro(self):
@@ -2269,16 +2282,18 @@ class CreacionPersonaFrame:
             
             # Mapear nombres de columnas a campos de la base de datos real
             mapeo_columnas = {
-                "SID": "employee",
-                "Nombre": "full_name",
-                "Email": "email",
-                "Posición": "position",
-                "Manager": "manager",
-                "Unidad": "unit",
-                "Estado": "activo"
+                "SID": "scotia_id",
+                "Eikon ID": "eikon_id",
+                "Employee #": "employee_number",
+                "Nombre": "employee_name",
+                "Apellido": "employee_last_name",
+                "Business Email": "business_email",
+                "Departamento": "department",
+                "Cargo": "current_position_title",
+                "Estado": "status"
             }
             
-            campo_bd = mapeo_columnas.get(columna, "employee")
+            campo_bd = mapeo_columnas.get(columna, "scotia_id")
             
             # Aplicar filtro en memoria
             if todos_resultados:
@@ -2303,38 +2318,41 @@ class CreacionPersonaFrame:
         
         if resultados:
             for resultado in resultados:
-                # Separar nombre y apellido del full_name
-                full_name = resultado.get('full_name', '')
-                nombre_parts = full_name.split(' ', 1)
-                nombre = nombre_parts[0] if nombre_parts else ''
-                apellido = nombre_parts[1] if len(nombre_parts) > 1 else ''
+                nombre = resultado.get('employee_name') or ''
+                apellido = resultado.get('employee_last_name') or ''
+                business_email = resultado.get('business_email') or resultado.get('email', '')
+                department = resultado.get('department') or resultado.get('unit', '')
+                cargo = resultado.get('current_position_title') or resultado.get('position', '')
+                status = resultado.get('status') or ('Active' if resultado.get('activo', True) else 'Inactive')
                 
                 self.tree.insert("", "end", values=(
                     resultado.get('scotia_id', ''),  # SID
+                    resultado.get('eikon_id', ''),
+                    resultado.get('employee_number', ''),
                     nombre,                          # Nombre
                     apellido,                        # Apellido
-                    resultado.get('email', ''),      # Email
-                    resultado.get('unit', ''),       # Departamento
-                    resultado.get('position', ''),   # Cargo
-                    'Active' if resultado.get('activo', True) else 'Inactive'  # Estado
+                    business_email,
+                    department,
+                    cargo,
+                    status
                 ))
     
     
     
     def _get_unique_units(self) -> List[str]:
-        """Obtiene unidades únicas existentes en headcount para los combos."""
+        """Obtiene departamentos únicos existentes en headcount para los combos."""
         try:
             registros = self.service.obtener_todo_headcount()
-            unidades = sorted({(reg.get('unit') or '').strip() for reg in registros if reg.get('unit')}, key=str.lower)
+            unidades = sorted({(reg.get('department') or '').strip() for reg in registros if reg.get('department')}, key=str.lower)
             return unidades
         except Exception:
             return []
 
     def _get_unique_unidad_sub(self) -> List[str]:
-        """Obtiene unidades/subunidades únicas existentes en headcount."""
+        """Obtiene títulos de posición únicos existentes en headcount."""
         try:
             registros = self.service.obtener_todo_headcount()
-            unidades = sorted({(reg.get('unidad_subunidad') or '').strip() for reg in registros if reg.get('unidad_subunidad')}, key=str.lower)
+            unidades = sorted({(reg.get('current_position_title') or '').strip() for reg in registros if reg.get('current_position_title')}, key=str.lower)
             return unidades
         except Exception:
             return []
@@ -2372,7 +2390,7 @@ class CreacionPersonaFrame:
     
     def validar_campos_obligatorios(self):
         """Valida que los campos obligatorios estén completos"""
-        campos_obligatorios = ['scotia_id', 'employee', 'full_name', 'email']
+        campos_obligatorios = ['scotia_id', 'employee_number', 'employee_name', 'business_email', 'department', 'current_position_title']
         campos_vacios = []
         
         for campo in campos_obligatorios:
@@ -2389,7 +2407,7 @@ class CreacionPersonaFrame:
         """Limpia todos los campos"""
         for var in self.variables.values():
             var.set("")
-        self.variables['activo'].set("Active")
+        self.variables['status'].set("Active")
     
     def actualizar_tabla(self):
         """Actualiza la tabla con todos los registros"""
@@ -2456,7 +2474,9 @@ class CreacionPersonaFrame:
         
         item = self.tree.item(selection[0])
         scotia_id = item['values'][0]
-        nombre = f"{item['values'][1]} {item['values'][2]}"
+        first_name = item['values'][3] if len(item['values']) > 3 else ''
+        last_name = item['values'][4] if len(item['values']) > 4 else ''
+        nombre = f"{first_name} {last_name}".strip()
         
         # Confirmar eliminación
         result = messagebox.askyesno(
@@ -2490,21 +2510,23 @@ class CreacionPersonaFrame:
         
         if resultados:
             for resultado in resultados:
-                # Separar nombre y apellido del full_name
-                full_name = resultado.get('full_name', '')
-                nombre_parts = full_name.split(' ', 1)
-                nombre = nombre_parts[0] if nombre_parts else ''
-                apellido = nombre_parts[1] if len(nombre_parts) > 1 else ''
+                nombre = resultado.get('employee_name') or ''
+                apellido = resultado.get('employee_last_name') or ''
+                business_email = resultado.get('business_email') or resultado.get('email', '')
+                department = resultado.get('department') or resultado.get('unit', '')
+                cargo = resultado.get('current_position_title') or resultado.get('position', '')
+                status = resultado.get('status') or ('Active' if resultado.get('activo', True) else 'Inactive')
                 
                 self.tree.insert("", "end", values=(
                     resultado.get('scotia_id', ''),  # SID
+                    resultado.get('eikon_id', ''),
+                    resultado.get('employee_number', ''),
                     nombre,                          # Nombre
                     apellido,                        # Apellido
-                    resultado.get('email', ''),      # Email
-                    resultado.get('unit', ''),       # Departamento
-                    resultado.get('unidad_subunidad', ''),  # Unidad/Subunidad
-                    resultado.get('position', ''),   # Cargo
-                    'Active' if resultado.get('activo', True) else 'Inactive'  # Estado
+                    business_email,
+                    department,
+                    cargo,
+                    status
                 ))
             
             # Mostrar mensaje de confirmación si se especifica
@@ -2794,25 +2816,32 @@ class PersonaDialog:
         # Campos del formulario
         campos = [
             ("SID (Scotia ID):", "scotia_id", "entry"),
-            ("Employee ID:", "employee", "entry"),
-            ("Nombre Completo:", "full_name", "entry"),
-            ("Email:", "email", "entry"),
-            ("Posición:", "position", "entry"),
-            ("Manager:", "manager", "entry"),
-            ("Senior Manager:", "senior_manager", "entry"),
-            ("Unidad:", "unit", "combobox", self.unidades),
-            ("Unidad/Subunidad:", "unidad_subunidad", "combobox", self.unidades_sub),
-            ("Fecha de Inicio:", "start_date", "entry"),
-            ("CECO:", "ceco", "entry"),
-            ("Skip Level:", "skip_level", "entry"),
-            ("Cafe Alcides:", "cafe_alcides", "entry"),
-            ("Parents:", "parents", "entry"),
-            ("Email Personal:", "personal_email", "entry"),
-            ("Tamaño:", "size", "combobox", ["XS", "S", "M", "L", "XL", "XXL"]),
-            ("Cumpleaños:", "birthday", "entry"),
-            ("Validación:", "validacion", "entry"),
-            ("Estado:", "activo", "combobox", ["Active", "Inactive"]),
-            ("Fecha de Inactivación:", "inactivation_date", "entry")
+            ("Eikon ID:", "eikon_id", "entry"),
+            ("Employee Number:", "employee_number", "entry"),
+            ("Nombre:", "employee_name", "entry"),
+            ("Apellido:", "employee_last_name", "entry"),
+            ("Business Email:", "business_email", "entry"),
+            ("Office:", "office", "entry"),
+            ("Department:", "department", "combobox", self.unidades),
+            ("Current Position Title:", "current_position_title", "combobox", self.unidades_sub),
+            ("Current Position Level:", "current_position_level", "entry"),
+            ("Hiring Date BNS:", "hiring_date_bns", "entry"),
+            ("Hiring Date GBS:", "hiring_date_gbs", "entry"),
+            ("Hiring Date AML:", "hiring_date_aml", "entry"),
+            ("Supervisor Name:", "supervisor_name", "entry"),
+            ("Supervisor Last Name:", "supervisor_last_name", "entry"),
+            ("Address:", "address", "entry"),
+            ("Brigade:", "brigade", "entry"),
+            ("Begdate:", "begdate", "entry"),
+            ("Status:", "status", "combobox", ["Active", "Inactive", "On Leave"]),
+            ("Exit Date:", "exit_date", "entry"),
+            ("Modality as Today:", "modality_as_today", "entry"),
+            ("Action Item:", "action_item", "entry"),
+            ("Exit Reason:", "exit_reason", "entry"),
+            ("Modality Reason:", "modality_reason", "entry"),
+            ("Gender:", "gender", "combobox", ["Female", "Male", "Non-binary", "Prefer not to say"]),
+            ("DOB:", "dob", "entry"),
+            ("Position Code:", "position_code", "entry")
         ]
         
         # Crear campos dinámicamente
@@ -2858,39 +2887,57 @@ class PersonaDialog:
     def _load_data(self):
         """Carga los datos existentes si es una edición"""
         if self.persona_data:
+            data = dict(self.persona_data)
+            full_name = data.get('full_name') or ''
+            if not data.get('employee_name') and full_name:
+                parts = full_name.split(' ', 1)
+                data['employee_name'] = parts[0]
+                if len(parts) > 1:
+                    data['employee_last_name'] = parts[1]
+            if not data.get('business_email') and data.get('email'):
+                data['business_email'] = data['email']
+            if not data.get('department') and data.get('unit'):
+                data['department'] = data['unit']
+            if not data.get('current_position_title') and data.get('position'):
+                data['current_position_title'] = data['position']
+            if not data.get('status'):
+                data['status'] = 'Active' if data.get('activo', True) else 'Inactive'
+            if not data.get('employee_number') and data.get('employee'):
+                data['employee_number'] = data['employee']
             for var_name, var in self.variables.items():
-                if var_name in self.persona_data:
-                    if var_name == 'activo':
-                        var.set('Active' if self.persona_data[var_name] else 'Inactive')
-                    else:
-                        var.set(str(self.persona_data[var_name]) if self.persona_data[var_name] is not None else '')
+                value = data.get(var_name)
+                if value is not None:
+                    var.set(str(value))
     
     def _save(self):
         """Guarda los datos del formulario"""
-        # Validaciones
-        if not self.variables['scotia_id'].get().strip():
-            messagebox.showerror("Error", "El SID es obligatorio")
-            return
-        
-        if not self.variables['employee'].get().strip():
-            messagebox.showerror("Error", "El Employee ID es obligatorio")
-            return
-        
-        if not self.variables['full_name'].get().strip():
-            messagebox.showerror("Error", "El nombre completo es obligatorio")
-            return
-        
-        if not self.variables['email'].get().strip():
-            messagebox.showerror("Error", "El email es obligatorio")
-            return
+        required_fields = [
+            ('scotia_id', "El SID es obligatorio"),
+            ('employee_number', "El número de empleado es obligatorio"),
+            ('employee_name', "El nombre es obligatorio"),
+            ('business_email', "El correo corporativo es obligatorio"),
+            ('department', "El departamento es obligatorio"),
+            ('current_position_title', "El cargo actual es obligatorio")
+        ]
+        for field, message_text in required_fields:
+            if not self.variables[field].get().strip():
+                messagebox.showerror("Error", message_text)
+                return
         
         # Preparar datos
         self.result = {}
         for var_name, var in self.variables.items():
-            if var_name == 'activo':
-                self.result[var_name] = var.get() == 'Active'
-            else:
-                self.result[var_name] = var.get().strip()
+            self.result[var_name] = var.get().strip()
+        
+        # Normalizar campos legacy para compatibilidad con el servicio
+        self.result['status'] = self.result.get('status') or 'Active'
+        full_name = f"{self.result.get('employee_name', '').strip()} {self.result.get('employee_last_name', '').strip()}".strip()
+        self.result['full_name'] = full_name
+        self.result['email'] = self.result.get('business_email')
+        self.result['employee'] = self.result.get('employee_number')
+        self.result['unit'] = self.result.get('department')
+        self.result['position'] = self.result.get('current_position_title')
+        self.result['activo'] = self.result['status'].lower() == 'active'
         
         self.dialog.destroy()
     
