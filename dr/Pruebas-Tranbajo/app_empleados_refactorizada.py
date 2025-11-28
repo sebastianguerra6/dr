@@ -1462,27 +1462,15 @@ class AplicacionesFrame:
         self.filtros_activos = {}
         self.campos_filtro = {
             "ID": "id",
-            "Jurisdicción": "jurisdiction",
-            "Unidad": "unit",
-            "Subunidad": "subunit",
-            "Unidad/Subunidad": "unidad_subunidad",
-            "Nombre Lógico": "logical_access_name",
-            "Alias": "alias",
-            "Path/Email/URL": "path_email_url",
-            "Rol de Posición": "position_role",
-            "Exception Tracking": "exception_tracking",
-            "Fulfillment Action": "fulfillment_action",
-            "Propietario del Sistema": "system_owner",
-            "Nombre del Rol": "role_name",
-            "Tipo de Acceso": "access_type",
-            "Categoría": "category",
-            "Datos Adicionales": "additional_data",
-            "Código AD": "ad_code",
-            "Estado": "access_status",
-            "Fecha Última Actualización": "last_update_date",
-            "Requiere Licencia": "require_licensing",
-            "Descripción": "description",
-            "Método de Autenticación": "authentication_method"
+            "Status": "status",
+            "Unit": "unit",
+            "Service": "service",
+            "Role": "role",
+            "Jurisdiction": "system_jurisdiction",
+            "Name Element": "name_element",
+            "Type of Element": "type_of_element",
+            "Owner": "application_owner",
+            "Criticality": "critical_non_critical"
         }
         
         self._crear_interfaz()
@@ -1696,30 +1684,30 @@ class AplicacionesFrame:
         table_frame.rowconfigure(0, weight=1)
         
         # Crear Treeview - Actualizado para coincidir con tabla applications
-        columns = ('ID', 'Logical Access Name', 'Alias', 'Unit', 'Unidad/Subunidad', 'Position Role', 'System Owner', 'Access Status', 'Category')
+        columns = ('ID', 'Name Element', 'Status', 'Unit', 'Service', 'Role', 'Owner', 'Criticality', 'Jurisdiction')
         self.tree = ttk.Treeview(table_frame, columns=columns, show='headings', height=15)
         
         # Configurar columnas
         self.tree.heading('ID', text='ID')
-        self.tree.heading('Logical Access Name', text='Logical Access Name')
-        self.tree.heading('Alias', text='Alias')
+        self.tree.heading('Name Element', text='Name Element')
+        self.tree.heading('Status', text='Status')
         self.tree.heading('Unit', text='Unit')
-        self.tree.heading('Unidad/Subunidad', text='Unidad/Subunidad')
-        self.tree.heading('Position Role', text='Position Role')
-        self.tree.heading('System Owner', text='System Owner')
-        self.tree.heading('Access Status', text='Access Status')
-        self.tree.heading('Category', text='Category')
+        self.tree.heading('Service', text='Service')
+        self.tree.heading('Role', text='Role')
+        self.tree.heading('Owner', text='Owner')
+        self.tree.heading('Criticality', text='Criticality')
+        self.tree.heading('Jurisdiction', text='Jurisdiction')
         
         # Configurar anchos de columna
         self.tree.column('ID', width=50, minwidth=50)
-        self.tree.column('Logical Access Name', width=180, minwidth=150)
-        self.tree.column('Alias', width=120, minwidth=100)
-        self.tree.column('Unit', width=100, minwidth=80)
-        self.tree.column('Unidad/Subunidad', width=150, minwidth=120)
-        self.tree.column('Position Role', width=150, minwidth=120)
-        self.tree.column('System Owner', width=120, minwidth=100)
-        self.tree.column('Access Status', width=100, minwidth=80)
-        self.tree.column('Category', width=120, minwidth=100)
+        self.tree.column('Name Element', width=220, minwidth=180)
+        self.tree.column('Status', width=100, minwidth=90)
+        self.tree.column('Unit', width=120, minwidth=100)
+        self.tree.column('Service', width=120, minwidth=100)
+        self.tree.column('Role', width=150, minwidth=120)
+        self.tree.column('Owner', width=150, minwidth=120)
+        self.tree.column('Criticality', width=130, minwidth=110)
+        self.tree.column('Jurisdiction', width=140, minwidth=110)
         
         # Scrollbars
         vsb = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
@@ -1766,33 +1754,24 @@ class AplicacionesFrame:
         
         # Insertar datos filtrados
         for app in self.filtered_applications:
-            # Formatear fecha
-            fecha = app.get('fecha_creacion', '')
-            try:
-                fecha_formatted = datetime.fromisoformat(fecha).strftime('%d/%m/%Y %H:%M') if fecha else 'N/A'
-            except:
-                fecha_formatted = fecha or 'N/A'
-            
-            # Determinar color del estado
-            status = app.get('status', 'Active')
-            tags = ('active',) if status == 'Active' else ('inactive',) if status == 'Inactive' else ('maintenance',)
-            
+            status = (app.get('status') or 'Active').strip()
             self.tree.insert('', 'end', values=(
                 app.get('id', ''),
-                app.get('logical_access_name', ''),
-                app.get('alias', ''),
+                app.get('name_element', ''),
+                status,
                 app.get('unit', ''),
-                app.get('unidad_subunidad', ''),
-                app.get('position_role', ''),
-                app.get('system_owner', ''),
-                app.get('access_status', ''),
-                app.get('category', '')
-            ), tags=tags)
+                app.get('service', ''),
+                app.get('role', ''),
+                app.get('application_owner', ''),
+                app.get('critical_non_critical', ''),
+                app.get('system_jurisdiction', '')
+            ), tags=(status,))
         
         # Configurar colores de las filas
-        self.tree.tag_configure('active', background='#d4edda')
-        self.tree.tag_configure('inactive', background='#f8d7da')
-        self.tree.tag_configure('maintenance', background='#fff3cd')
+        # Colorear por status
+        self.tree.tag_configure('Active', background='#d4edda')
+        self.tree.tag_configure('Inactive', background='#f8d7da')
+        self.tree.tag_configure('Maintenance', background='#fff3cd')
     
     def _on_busqueda_change(self, *args):
         """Maneja cambios en la búsqueda"""
@@ -1804,12 +1783,12 @@ class AplicacionesFrame:
         else:
             self.filtered_applications = [
                 app for app in self.applications
-                if (search_term in app.get('logical_access_name', '').lower() or
-                    search_term in app.get('alias', '').lower() or
+                if (search_term in app.get('name_element', '').lower() or
                     search_term in app.get('unit', '').lower() or
-                    search_term in app.get('position_role', '').lower() or
-                    search_term in app.get('system_owner', '').lower() or
-                    search_term in app.get('category', '').lower())
+                    search_term in app.get('service', '').lower() or
+                    search_term in app.get('role', '').lower() or
+                    search_term in app.get('application_owner', '').lower() or
+                    search_term in app.get('critical_non_critical', '').lower())
             ]
         
         self._actualizar_tabla()
@@ -1938,21 +1917,21 @@ class AplicacionesFrame:
             
             if filename:
                 with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
-                    fieldnames = ['ID', 'Logical Access Name', 'Alias', 'Unit', 'Unidad/Subunidad', 'Position Role', 'System Owner', 'Access Status', 'Category']
+                    fieldnames = ['ID', 'Name Element', 'Status', 'Unit', 'Service', 'Role', 'Owner', 'Criticality', 'Jurisdiction']
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                     
                     writer.writeheader()
                     for app in self.filtered_applications:
                         writer.writerow({
                             'ID': app.get('id', ''),
-                            'Logical Access Name': app.get('logical_access_name', ''),
-                            'Alias': app.get('alias', ''),
+                            'Name Element': app.get('name_element', ''),
+                            'Status': app.get('status', ''),
                             'Unit': app.get('unit', ''),
-                            'Unidad/Subunidad': app.get('unidad_subunidad', ''),
-                            'Position Role': app.get('position_role', ''),
-                            'System Owner': app.get('system_owner', ''),
-                            'Access Status': app.get('access_status', ''),
-                            'Category': app.get('category', '')
+                            'Service': app.get('service', ''),
+                            'Role': app.get('role', ''),
+                            'Owner': app.get('application_owner', ''),
+                            'Criticality': app.get('critical_non_critical', ''),
+                            'Jurisdiction': app.get('system_jurisdiction', '')
                         })
                 
                 self._actualizar_estado(f"📊 Datos exportados a {filename}")
@@ -2028,28 +2007,35 @@ class ApplicationDialog:
         from services.dropdown_service import dropdown_service
         dropdown_values = dropdown_service.get_all_dropdown_values()
         
-        # Campos actualizados para coincidir con tabla applications
+        # Campos alineados con la tabla applications_dr
         campos = [
-            ("Jurisdiction:", "jurisdiction", "combobox", dropdown_values['jurisdictions']),
+            ("Status:", "status", "combobox", dropdown_values['access_statuses']),
             ("Unit:", "unit", "combobox", dropdown_values['units']),
-            ("Subunit:", "subunit", "combobox", dropdown_values['subunits']),
-            ("Unidad/Subunidad:", "unidad_subunidad", "combobox", dropdown_values['unidad_subunidad']),
-            ("Logical Access Name:", "logical_access_name", "entry"),
-            ("Alias:", "alias", "entry"),
-            ("Path/Email/URL:", "path_email_url", "entry"),
-            ("Position Role:", "position_role", "combobox", dropdown_values['positions']),
-            ("Exception Tracking:", "exception_tracking", "entry"),
-            ("Fulfillment Action:", "fulfillment_action", "entry"),
-            ("System Owner:", "system_owner", "combobox", dropdown_values['system_owners']),
-            ("Role Name:", "role_name", "combobox", dropdown_values['roles']),
-            ("Access Type:", "access_type", "combobox", dropdown_values['access_types']),
-            ("Category:", "category", "combobox", dropdown_values['categories']),
-            ("Additional Data:", "additional_data", "entry"),
-            ("AD Code:", "ad_code", "entry"),
-            ("Access Status:", "access_status", "combobox", dropdown_values['access_statuses']),
-            ("Require Licensing:", "require_licensing", "entry"),
-            ("Description:", "description", "text"),
-            ("Authentication Method:", "authentication_method", "combobox", dropdown_values['authentication_methods'])
+            ("Service:", "service", "combobox", dropdown_values['subunits']),
+            ("Role:", "role", "combobox", dropdown_values['positions']),
+            ("System Jurisdiction:", "system_jurisdiction", "combobox", dropdown_values['jurisdictions']),
+            ("Name Element:", "name_element", "entry"),
+            ("Type of Element:", "type_of_element", "entry"),
+            ("Critical / Non Critical:", "critical_non_critical", "combobox", dropdown_values['categories']),
+            ("Application Owner:", "application_owner", "combobox", dropdown_values['system_owners']),
+            ("Direct Contact:", "direct_contact", "entry"),
+            ("System Description:", "system_description", "text"),
+            ("Information Needed:", "information_needed", "text"),
+            ("Approval Needed:", "approval_needed", "text"),
+            ("Request Object:", "request_object", "text"),
+            ("Form Needed to Request Access:", "form_need_to_request_access", "text"),
+            ("Roles and Profiles:", "roles_and_profiles", "text"),
+            ("How to Request System Access:", "how_to_request_system_access", "text"),
+            ("How to Remove System Access:", "how_to_remove_system_access", "text"),
+            ("For Issues:", "for_issues", "text"),
+            ("SLA Onboarding:", "sla_onboarding", "entry"),
+            ("SLA Offboarding:", "sla_offboarding", "entry"),
+            ("System Application Link:", "system_application_link", "entry"),
+            ("Log In Information:", "log_in_information", "text"),
+            ("Access Blocked / Password:", "access_blocked_password", "text"),
+            ("Bulk Request:", "bulk_request", "text"),
+            ("Certification Process:", "certification_process", "text"),
+            ("License:", "license", "entry")
         ]
         
         # Crear campos dinámicamente
@@ -2091,8 +2077,8 @@ class ApplicationDialog:
         ttk.Button(button_frame, text="Cancelar", command=self._cancel).pack(side=tk.LEFT, padx=5)
         
         # Configurar validación
-        if 'logical_access_name' in self.widgets:
-            self.widgets['logical_access_name'].focus()
+        if 'name_element' in self.widgets:
+            self.widgets['name_element'].focus()
         
         self.dialog.bind('<Return>', lambda e: self._save())
         self.dialog.bind('<Escape>', lambda e: self._cancel())
@@ -2111,8 +2097,8 @@ class ApplicationDialog:
     def _save(self):
         """Guarda los datos del formulario"""
         # Validaciones básicas
-        if not self.variables['logical_access_name'].get().strip():
-            messagebox.showerror("Error", "El Logical Access Name es obligatorio")
+        if not self.variables['name_element'].get().strip():
+            messagebox.showerror("Error", "El Name Element es obligatorio")
             return
         
         if not self.variables['unit'].get().strip():
@@ -2128,10 +2114,20 @@ class ApplicationDialog:
                 self.result[var_name] = var.get('1.0', tk.END).strip()
         
         # Establecer valores por defecto si están vacíos
-        if not self.result.get('access_status'):
-            self.result['access_status'] = 'Active'
-        if not self.result.get('jurisdiction'):
-            self.result['jurisdiction'] = 'Global'
+        if not self.result.get('status'):
+            self.result['status'] = 'Active'
+        if not self.result.get('system_jurisdiction'):
+            self.result['system_jurisdiction'] = 'Global'
+
+        # Compatibilidad con lógica existente
+        self.result['logical_access_name'] = self.result.get('name_element')
+        self.result['access_status'] = self.result.get('status')
+        self.result['system_owner'] = self.result.get('application_owner')
+        self.result['position_role'] = self.result.get('role')
+        unidad = self.result.get('unit', '')
+        servicio = self.result.get('service', '')
+        if unidad or servicio:
+            self.result['unidad_subunidad'] = f"{unidad} / {servicio}" if servicio else unidad
         
         self.dialog.destroy()
     

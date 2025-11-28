@@ -53,12 +53,6 @@ END
 GO
 
 -- Eliminar tablas legacy si aún existen
-IF OBJECT_ID(N'[dbo].[headcount]', N'U') IS NOT NULL
-BEGIN
-    DROP TABLE [dbo].[headcount];
-    PRINT 'Tabla legacy headcount eliminada.';
-END
-
 IF OBJECT_ID(N'[dbo].[applications]', N'U') IS NOT NULL
 BEGIN
     DROP TABLE [dbo].[applications];
@@ -79,51 +73,34 @@ END
 GO
 
 -- =====================================================
--- TABLA 1: HEADCOUNT (Empleados)
+-- TABLA 1: HEADCOUNT (Empleados) - Fuente externa existente
 -- =====================================================
+IF OBJECT_ID(N'[dbo].[Master_Staff_List]', N'U') IS NULL
+BEGIN
+    RAISERROR('La tabla [dbo].[Master_Staff_List] no existe. Cree la tabla o actualice el nombre antes de ejecutar este script.', 16, 1);
+    RETURN;
+END
+PRINT 'Usando tabla existente [dbo].[Master_Staff_List] como fuente de headcount.';
+GO
+
+-- Limpieza de artefactos legacy
 IF OBJECT_ID(N'[dbo].[headcount_dr]', N'U') IS NOT NULL
 BEGIN
     DROP TABLE [dbo].[headcount_dr];
-    PRINT 'Tabla headcount existente eliminada (se recreará con el esquema actual).';
+    PRINT 'Tabla legacy headcount_dr eliminada.';
 END
-GO
-
-CREATE TABLE [dbo].[headcount_dr] (
-    [scotia_id]             VARCHAR(20)    NOT NULL PRIMARY KEY,
-    [eikon_id]              VARCHAR(30)    NULL,
-    [employee_number]       VARCHAR(30)    NOT NULL,
-    [employee_name]         VARCHAR(150)   NOT NULL,
-    [employee_last_name]    VARCHAR(150)   NOT NULL,
-    [business_email]        VARCHAR(180)   NOT NULL,
-    [office]                VARCHAR(150)   NULL,
-    [department]            VARCHAR(150)   NOT NULL,
-    [current_position_title]    VARCHAR(150) NOT NULL,
-    [current_position_level]    VARCHAR(100) NULL,
-    [hiring_date_bns]       DATE           NULL,
-    [hiring_date_gbs]       DATE           NULL,
-    [hiring_date_aml]       DATE           NULL,
-    [supervisor_name]       VARCHAR(150)   NULL,
-    [supervisor_last_name]  VARCHAR(150)   NULL,
-    [address]               VARCHAR(255)   NULL,
-    [brigade]               VARCHAR(150)   NULL,
-    [begdate]               DATE           NULL,
-    [status]                VARCHAR(50)    NOT NULL,
-    [exit_date]             DATE           NULL,
-    [modality_as_today]     VARCHAR(120)   NULL,
-    [action_item]           VARCHAR(255)   NULL,
-    [exit_reason]           VARCHAR(255)   NULL,
-    [modality_reason]       VARCHAR(255)   NULL,
-    [gender]                VARCHAR(50)    NULL,
-    [dob]                   DATE           NULL,
-    [position_code]         VARCHAR(60)    NULL
-);
-PRINT 'Tabla headcount_dr creada exitosamente';
 GO
 
 IF EXISTS (SELECT 1 FROM sys.synonyms WHERE name = 'headcount' AND schema_id = SCHEMA_ID('dbo'))
     DROP SYNONYM [dbo].[headcount];
 GO
-CREATE SYNONYM [dbo].[headcount] FOR [dbo].[headcount_dr];
+CREATE SYNONYM [dbo].[headcount] FOR [dbo].[Master_Staff_List];
+GO
+
+IF EXISTS (SELECT 1 FROM sys.synonyms WHERE name = 'headcount_dr' AND schema_id = SCHEMA_ID('dbo'))
+    DROP SYNONYM [dbo].[headcount_dr];
+GO
+CREATE SYNONYM [dbo].[headcount_dr] FOR [dbo].[Master_Staff_List];
 GO
 
 -- =====================================================
@@ -209,7 +186,7 @@ SELECT
     h.brigade,
     h.begdate,
     h.position_code
-FROM dbo.headcount_dr h;
+FROM dbo.Master_Staff_List h;
 GO
 
 IF OBJECT_ID(N'[dbo].[vw_applications_legacy]', N'V') IS NOT NULL
@@ -339,7 +316,7 @@ IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_historico_headcou
 BEGIN
 ALTER TABLE [dbo].[historico_dr]
 ADD CONSTRAINT [FK_historico_headcount] 
-FOREIGN KEY ([scotia_id]) REFERENCES [dbo].[headcount_dr]([scotia_id]) ON DELETE CASCADE;
+FOREIGN KEY ([scotia_id]) REFERENCES [dbo].[Master_Staff_List]([scotia_id]) ON DELETE CASCADE;
     PRINT 'Foreign Key FK_historico_headcount creada exitosamente';
 END
 GO
@@ -361,7 +338,7 @@ IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE name = 'FK_procesos_headcoun
 BEGIN
 ALTER TABLE [dbo].[procesos_dr]
 ADD CONSTRAINT [FK_procesos_headcount] 
-FOREIGN KEY ([sid]) REFERENCES [dbo].[headcount_dr]([scotia_id]) ON DELETE CASCADE;
+FOREIGN KEY ([sid]) REFERENCES [dbo].[Master_Staff_List]([scotia_id]) ON DELETE CASCADE;
     PRINT 'Foreign Key FK_procesos_headcount creada exitosamente';
 END
 GO
@@ -371,23 +348,23 @@ GO
 -- =====================================================
 
 -- Índices para headcount
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_headcount_department_title' AND object_id = OBJECT_ID(N'[dbo].[headcount_dr]'))
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_headcount_department_title' AND object_id = OBJECT_ID(N'[dbo].[Master_Staff_List]'))
 BEGIN
-    CREATE INDEX IX_headcount_department_title ON [dbo].[headcount_dr] ([department], [current_position_title]);
+    CREATE INDEX IX_headcount_department_title ON [dbo].[Master_Staff_List] ([department], [current_position_title]);
     PRINT 'Índice IX_headcount_department_title creado exitosamente';
 END
 GO
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_headcount_level_code' AND object_id = OBJECT_ID(N'[dbo].[headcount_dr]'))
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_headcount_level_code' AND object_id = OBJECT_ID(N'[dbo].[Master_Staff_List]'))
 BEGIN
-    CREATE INDEX IX_headcount_level_code ON [dbo].[headcount_dr] ([current_position_level], [position_code]);
+    CREATE INDEX IX_headcount_level_code ON [dbo].[Master_Staff_List] ([current_position_level], [position_code]);
     PRINT 'Índice IX_headcount_level_code creado exitosamente';
 END
 GO
 
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_headcount_status' AND object_id = OBJECT_ID(N'[dbo].[headcount_dr]'))
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_headcount_status' AND object_id = OBJECT_ID(N'[dbo].[Master_Staff_List]'))
 BEGIN
-    CREATE INDEX IX_headcount_status ON [dbo].[headcount_dr] ([status]);
+    CREATE INDEX IX_headcount_status ON [dbo].[Master_Staff_List] ([status]);
     PRINT 'Índice IX_headcount_status creado exitosamente';
 END
 GO
@@ -786,22 +763,6 @@ PRINT 'Función fn_NormalizeText creada exitosamente';
 -- DATOS DE EJEMPLO
 -- =====================================================
 
--- Insertar datos de ejemplo en headcount
-IF NOT EXISTS (SELECT * FROM headcount_dr WHERE scotia_id = 'EMP001')
-BEGIN
-    INSERT INTO [dbo].[headcount_dr] (
-        scotia_id, eikon_id, employee_number, employee_name, employee_last_name,
-        business_email, office, department, current_position_title, current_position_level,
-        hiring_date_bns, supervisor_name, supervisor_last_name, status
-    )
-    VALUES 
-        ('EMP001', 'EIK001', '1001', 'Juan', 'Pérez', 'juan.perez@empresa.com', 'Oficina Principal', 'Tecnología', 'Analista', 'Senior', '2023-01-15', 'María', 'González', 'Active'),
-        ('EMP002', 'EIK002', '1002', 'María', 'González', 'maria.gonzalez@empresa.com', 'Oficina Principal', 'Tecnología', 'Analista Senior', 'Senior', '2022-03-10', 'Carlos', 'López', 'Active'),
-        ('EMP003', 'EIK003', '1003', 'Carlos', 'López', 'carlos.lopez@empresa.com', 'Oficina Principal', 'Tecnología', 'Gerente', 'Director', '2021-06-01', 'Ana', 'Martínez', 'Active');
-    PRINT 'Datos de ejemplo insertados en headcount';
-END
-GO
-
 -- Insertar datos de ejemplo en applications
 IF NOT EXISTS (SELECT * FROM applications_dr WHERE name_element = 'Sistema de Gestión')
 BEGIN
@@ -817,16 +778,49 @@ BEGIN
 END
 GO
 
--- Insertar datos de ejemplo en historico
-IF NOT EXISTS (SELECT * FROM historico_dr WHERE scotia_id = 'EMP001')
+-- Insertar datos de ejemplo en historico (solo si existen los SID en Master_Staff_List)
+DECLARE @historico_rows_inserted INT = 0;
+
+IF EXISTS (SELECT 1 FROM Master_Staff_List WHERE scotia_id = 'EMP001')
 BEGIN
-    INSERT INTO [dbo].[historico_dr] (scotia_id, case_id, responsible, record_date, request_date, process_access, subunit, event_description, ticket_email, app_access_name, computer_system_type, duration_of_access, status, closing_date_app, closing_date_ticket, app_quality, confirmation_by_user, comment, comment_tq, ticket_quality, general_status_ticket, general_status_case, average_time_open_ticket, sla_app, sla_ticket, sla_case)
-    VALUES 
-        ('EMP001', 'CASE-20240115-001', 'Admin Sistema', GETDATE(), '2024-01-14', 'onboarding', 'Tecnología/Desarrollo', 'Usuario creado en sistema', 'admin@empresa.com', 'Sistema de Gestión', 'Sistemas', 'Permanente', 'Completado', '2024-01-15', '2024-01-15', 'Excelente', '2024-01-16', 'Usuario creado exitosamente', 'Ticket completado satisfactoriamente', 'Excelente', 'Completado', 'Completado', '00:30:00', 'Cumplido', 'Cumplido', 'Cumplido'),
-        ('EMP002', 'CASE-20240115-002', 'Admin Portal', GETDATE(), '2024-01-14', 'onboarding', 'Tecnología/Desarrollo', 'Usuario creado en portal', 'admin@empresa.com', 'GitLab', 'Desarrollo', 'Permanente', 'Completado', '2024-01-15', '2024-01-15', 'Excelente', '2024-01-16', 'Usuario creado exitosamente', 'Ticket completado satisfactoriamente', 'Excelente', 'Completado', 'Completado', '00:45:00', 'Cumplido', 'Cumplido', 'Cumplido'),
-        ('EMP003', 'CASE-20240115-003', 'Admin Sistema', GETDATE(), '2024-01-14', 'onboarding', 'Tecnología/Desarrollo', 'Usuario creado en sistema', 'admin@empresa.com', 'Jira', 'Gestión', 'Permanente', 'Completado', '2024-01-15', '2024-01-15', 'Excelente', '2024-01-16', 'Usuario creado exitosamente', 'Ticket completado satisfactoriamente', 'Excelente', 'Completado', 'Completado', '00:20:00', 'Cumplido', 'Cumplido', 'Cumplido');
-    PRINT 'Datos de ejemplo insertados en historico';
+    IF NOT EXISTS (SELECT 1 FROM historico_dr WHERE scotia_id = 'EMP001')
+    BEGIN
+        INSERT INTO [dbo].[historico_dr] (scotia_id, case_id, responsible, record_date, request_date, process_access, subunit, event_description, ticket_email, app_access_name, computer_system_type, duration_of_access, status, closing_date_app, closing_date_ticket, app_quality, confirmation_by_user, comment, comment_tq, ticket_quality, general_status_ticket, general_status_case, average_time_open_ticket, sla_app, sla_ticket, sla_case)
+        VALUES ('EMP001', 'CASE-20240115-001', 'Admin Sistema', GETDATE(), '2024-01-14', 'onboarding', 'Tecnología/Desarrollo', 'Usuario creado en sistema', 'admin@empresa.com', 'Sistema de Gestión', 'Sistemas', 'Permanente', 'Completado', '2024-01-15', '2024-01-15', 'Excelente', '2024-01-16', 'Usuario creado exitosamente', 'Ticket completado satisfactoriamente', 'Excelente', 'Completado', 'Completado', '00:30:00', 'Cumplido', 'Cumplido', 'Cumplido');
+        SET @historico_rows_inserted += 1;
+    END
 END
+ELSE
+    PRINT 'Dato demo EMP001 omitido: no existe en Master_Staff_List.';
+
+IF EXISTS (SELECT 1 FROM Master_Staff_List WHERE scotia_id = 'EMP002')
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM historico_dr WHERE scotia_id = 'EMP002')
+    BEGIN
+        INSERT INTO [dbo].[historico_dr] (scotia_id, case_id, responsible, record_date, request_date, process_access, subunit, event_description, ticket_email, app_access_name, computer_system_type, duration_of_access, status, closing_date_app, closing_date_ticket, app_quality, confirmation_by_user, comment, comment_tq, ticket_quality, general_status_ticket, general_status_case, average_time_open_ticket, sla_app, sla_ticket, sla_case)
+        VALUES ('EMP002', 'CASE-20240115-002', 'Admin Portal', GETDATE(), '2024-01-14', 'onboarding', 'Tecnología/Desarrollo', 'Usuario creado en portal', 'admin@empresa.com', 'GitLab', 'Desarrollo', 'Permanente', 'Completado', '2024-01-15', '2024-01-15', 'Excelente', '2024-01-16', 'Usuario creado exitosamente', 'Ticket completado satisfactoriamente', 'Excelente', 'Completado', 'Completado', '00:45:00', 'Cumplido', 'Cumplido', 'Cumplido');
+        SET @historico_rows_inserted += 1;
+    END
+END
+ELSE
+    PRINT 'Dato demo EMP002 omitido: no existe en Master_Staff_List.';
+
+IF EXISTS (SELECT 1 FROM Master_Staff_List WHERE scotia_id = 'EMP003')
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM historico_dr WHERE scotia_id = 'EMP003')
+    BEGIN
+        INSERT INTO [dbo].[historico_dr] (scotia_id, case_id, responsible, record_date, request_date, process_access, subunit, event_description, ticket_email, app_access_name, computer_system_type, duration_of_access, status, closing_date_app, closing_date_ticket, app_quality, confirmation_by_user, comment, comment_tq, ticket_quality, general_status_ticket, general_status_case, average_time_open_ticket, sla_app, sla_ticket, sla_case)
+        VALUES ('EMP003', 'CASE-20240115-003', 'Admin Sistema', GETDATE(), '2024-01-14', 'onboarding', 'Tecnología/Desarrollo', 'Usuario creado en sistema', 'admin@empresa.com', 'Jira', 'Gestión', 'Permanente', 'Completado', '2024-01-15', '2024-01-15', 'Excelente', '2024-01-16', 'Usuario creado exitosamente', 'Ticket completado satisfactoriamente', 'Excelente', 'Completado', 'Completado', '00:20:00', 'Cumplido', 'Cumplido', 'Cumplido');
+        SET @historico_rows_inserted += 1;
+    END
+END
+ELSE
+    PRINT 'Dato demo EMP003 omitido: no existe en Master_Staff_List.';
+
+IF @historico_rows_inserted > 0
+    PRINT CONCAT('Datos de ejemplo insertados en historico: ', @historico_rows_inserted);
+ELSE
+    PRINT 'No se insertaron datos demo en historico (faltan SID en Master_Staff_List).';
 GO
 
 -- =====================================================

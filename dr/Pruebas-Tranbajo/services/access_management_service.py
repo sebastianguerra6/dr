@@ -20,6 +20,8 @@ from config import get_database_connection
 class AccessManagementService:
     """Servicio principal para gestionar accesos y procesos"""
 
+    HEADCOUNT_TABLE = "[dbo].[Master_Staff_List]"
+
     # ==============================
     # UTILIDADES INTERNAS
     # ==============================
@@ -70,7 +72,7 @@ class AccessManagementService:
         Construye el SELECT base para la tabla headcount exponiendo los nombres
         antiguos que consume la UI mediante alias SQL.
         """
-        base_query = """
+        base_query = f"""
             SELECT
                 h.scotia_id,
                 h.eikon_id,
@@ -120,7 +122,7 @@ class AccessManagementService:
                 NULL AS personal_email,
                 NULL AS size,
                 NULL AS validacion
-            FROM headcount h
+            FROM {self.headcount_table} h
         """
         if where_clause:
             base_query += f" WHERE {where_clause} "
@@ -267,6 +269,7 @@ class AccessManagementService:
     def __init__(self):
         """Inicializa el servicio con conexión a SQL Server"""
         self.db_manager = get_database_connection()
+        self.headcount_table = os.getenv('HEADCOUNT_TABLE', self.HEADCOUNT_TABLE)
 
     def get_connection(self) -> pyodbc.Connection:
         """Obtiene una conexión a la base de datos"""
@@ -330,8 +333,8 @@ class AccessManagementService:
             modality_as_today = employee_data.get('modality_as_today') or employee_data.get('size')
             dob_value = employee_data.get('dob') or employee_data.get('birthday')
 
-            cursor.execute('''
-                INSERT INTO headcount 
+            cursor.execute(f'''
+                INSERT INTO {self.headcount_table} 
                 (scotia_id, eikon_id, employee_number, employee_name, employee_last_name,
                  office, department, current_position_title, current_position_level,
                  hiring_date_bns, hiring_date_gbs, hiring_date_aml,
@@ -434,8 +437,8 @@ class AccessManagementService:
             # Mapear valores al nuevo esquema
             department_value = new_unidad_subunidad or new_unit
 
-            cursor.execute('''
-                UPDATE headcount 
+            cursor.execute(f'''
+                UPDATE {self.headcount_table} 
                 SET current_position_title = ?, department = ?
                 WHERE scotia_id = ?
             ''', (new_position, department_value, scotia_id))
@@ -575,7 +578,7 @@ class AccessManagementService:
             params.append(scotia_id)
 
             query = f"""
-                UPDATE headcount 
+                UPDATE {self.headcount_table} 
                 SET {', '.join(set_clauses)}
                 WHERE scotia_id = ?
             """
@@ -601,11 +604,11 @@ class AccessManagementService:
             cursor = conn.cursor()
 
             # Verificar si el empleado existe
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT
                     LTRIM(RTRIM(COALESCE(employee_name, ''))) +
                     CASE WHEN COALESCE(employee_last_name, '') = '' THEN '' ELSE ' ' + employee_last_name END AS full_name
-                FROM headcount WHERE scotia_id = ?
+                FROM {self.headcount_table} WHERE scotia_id = ?
             """, (scotia_id,))
             empleado = cursor.fetchone()
 
@@ -614,7 +617,7 @@ class AccessManagementService:
                 return False, f"Empleado {scotia_id} no encontrado"
 
             # Eliminar el empleado
-            cursor.execute('DELETE FROM headcount WHERE scotia_id = ?', (scotia_id,))
+            cursor.execute(f'DELETE FROM {self.headcount_table} WHERE scotia_id = ?', (scotia_id,))
 
             if cursor.rowcount == 0:
                 conn.close()
@@ -1470,7 +1473,7 @@ class AccessManagementService:
             cursor = conn.cursor()
             
             # Verificar que el empleado existe
-            cursor.execute('SELECT COUNT(*) FROM headcount WHERE scotia_id = ?', (scotia_id,))
+            cursor.execute(f'SELECT COUNT(*) FROM {self.headcount_table} WHERE scotia_id = ?', (scotia_id,))
             result = cursor.fetchone()
             if not result or result[0] == 0:
                 conn.close()
@@ -1478,15 +1481,15 @@ class AccessManagementService:
             
             # Actualizar estado
             if active:
-                cursor.execute('''
-                    UPDATE headcount 
+                cursor.execute(f'''
+                    UPDATE {self.headcount_table} 
                     SET status = 'Active', exit_date = NULL
                     WHERE scotia_id = ?
                 ''', (scotia_id,))
                 status_text = "activo"
             else:
-                cursor.execute('''
-                    UPDATE headcount 
+                cursor.execute(f'''
+                    UPDATE {self.headcount_table} 
                     SET status = 'Inactive', exit_date = ?
                     WHERE scotia_id = ?
                 ''', (datetime.now().date(), scotia_id))
@@ -1532,8 +1535,8 @@ class AccessManagementService:
             if not current_position or not current_unit:
                 conn = self.get_connection()
                 cursor = conn.cursor()
-                cursor.execute('''
-                    UPDATE headcount 
+                cursor.execute(f'''
+                    UPDATE {self.headcount_table} 
                     SET current_position_title = ?, department = ?
                     WHERE scotia_id = ?
                 ''', (position, unit, scotia_id))
@@ -1705,8 +1708,8 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
             inactivation_date = datetime.now().strftime('%Y-%m-%d')
-            cursor.execute('''
-                UPDATE headcount 
+            cursor.execute(f'''
+                UPDATE {self.headcount_table} 
                 SET status = 'Inactive', 
                     exit_date = ?, 
                     department = 'out of the unit'
@@ -1788,7 +1791,7 @@ class AccessManagementService:
             cursor = conn.cursor()
             
             # Obtener unidad_subunidad del headcount para usar como fallback
-            cursor.execute('SELECT department FROM headcount WHERE scotia_id = ?', (scotia_id,))
+            cursor.execute(f'SELECT department FROM {self.headcount_table} WHERE scotia_id = ?', (scotia_id,))
             hc_result = cursor.fetchone()
             default_unidad_subunidad = self._safe_strip(hc_result[0] if hc_result else None, '').upper()
             
@@ -2751,7 +2754,7 @@ class AccessManagementService:
             stats['por_subunidad'] = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
             
             # 3. Estadísticas por puesto
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT head.position as puesto, head.unit as unidad, COUNT(*) as total_registros,
                        COUNT(CASE WHEN h.status = 'Completado' THEN 1 END) as completados,
                        COUNT(CASE WHEN h.status = 'Pendiente' THEN 1 END) as pendientes,
@@ -2759,7 +2762,7 @@ class AccessManagementService:
                        COUNT(CASE WHEN h.status = 'Cancelado' THEN 1 END) as cancelados,
                        COUNT(CASE WHEN h.status = 'Rechazado' THEN 1 END) as rechazados
                 FROM historico h
-                INNER JOIN headcount head ON h.scotia_id = head.scotia_id
+                INNER JOIN {self.headcount_table} head ON h.scotia_id = head.scotia_id
                 WHERE head.position IS NOT NULL AND head.position != ''
                 GROUP BY head.position, head.unit
                 ORDER BY total_registros DESC
