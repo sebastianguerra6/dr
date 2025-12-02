@@ -21,6 +21,9 @@ class AccessManagementService:
     """Servicio principal para gestionar accesos y procesos"""
 
     HEADCOUNT_TABLE = "[dbo].[Master_Staff_List]"
+    APPLICATIONS_TABLE = "[dbo].[applications_dr]"
+    HISTORICO_TABLE = "[dbo].[historico_dr]"
+    PROCESOS_TABLE = "[dbo].[procesos_dr]"
 
     # ==============================
     # UTILIDADES INTERNAS
@@ -139,7 +142,7 @@ class AccessManagementService:
         Construye el SELECT base para la tabla applications exponiendo columnas
         compatibles con la lógica actual de la app.
         """
-        base_query = """
+        base_query = f"""
             SELECT
                 a.id,
                 a.status,
@@ -189,7 +192,7 @@ class AccessManagementService:
                 a.certification_process,
                 a.license AS require_licensing,
                 a.license
-            FROM applications a
+            FROM {self.applications_table} a
         """
         if where_clause:
             base_query += f" WHERE {where_clause} "
@@ -270,6 +273,9 @@ class AccessManagementService:
         """Inicializa el servicio con conexión a SQL Server"""
         self.db_manager = get_database_connection()
         self.headcount_table = os.getenv('HEADCOUNT_TABLE', self.HEADCOUNT_TABLE)
+        self.applications_table = os.getenv('APPLICATIONS_TABLE', self.APPLICATIONS_TABLE)
+        self.historico_table = os.getenv('HISTORICO_TABLE', self.HISTORICO_TABLE)
+        self.procesos_table = os.getenv('PROCESOS_TABLE', self.PROCESOS_TABLE)
 
     def get_connection(self) -> pyodbc.Connection:
         """Obtiene una conexión a la base de datos"""
@@ -690,33 +696,33 @@ class AccessManagementService:
                 print("DEBUG: No se encontraron aplicaciones. Verificando qué datos existen...")
                 
                 # Verificar posiciones disponibles
-                cursor.execute("SELECT DISTINCT role FROM applications WHERE status = 'Active'")
+                cursor.execute(f"SELECT DISTINCT role FROM {self.applications_table} WHERE status = 'Active'")
                 positions = cursor.fetchall()
                 print(f"DEBUG: Posiciones disponibles: {positions}")
                 
                 # Verificar unidades/subunidades disponibles
-                cursor.execute("SELECT DISTINCT unit FROM applications WHERE status = 'Active'")
+                cursor.execute(f"SELECT DISTINCT unit FROM {self.applications_table} WHERE status = 'Active'")
                 unidades = cursor.fetchall()
                 print(f"DEBUG: Unidades/Subunidades disponibles: {unidades}")
                 
                 # Verificar subunidades disponibles
-                cursor.execute("SELECT DISTINCT service FROM applications WHERE status = 'Active'")
+                cursor.execute(f"SELECT DISTINCT service FROM {self.applications_table} WHERE status = 'Active'")
                 subunidades = cursor.fetchall()
                 print(f"DEBUG: Subunidades disponibles: {subunidades}")
                 
                 # Buscar aplicaciones que contengan "Summer" en cualquier campo
-                cursor.execute("""
+                cursor.execute(f"""
                     SELECT name_element, unit, service, role 
-                    FROM applications 
+                    FROM {self.applications_table} 
                     WHERE status = 'Active' AND (role LIKE '%Summer%' OR service LIKE '%Summer%')
                 """)
                 summer_apps = cursor.fetchall()
                 print(f"DEBUG: Aplicaciones que contienen 'Summer': {summer_apps}")
                 
                 # Buscar aplicaciones que contengan "Business Intelligence" o "Analytics"
-                cursor.execute("""
+                cursor.execute(f"""
                     SELECT name_element, unit, service, role 
-                    FROM applications 
+                    FROM {self.applications_table} 
                     WHERE status = 'Active' AND (unit LIKE '%Business Intelligence%' OR unit LIKE '%Analytics%' OR service LIKE '%Analytics%')
                 """)
                 bi_apps = cursor.fetchall()
@@ -792,28 +798,28 @@ class AccessManagementService:
                 print("DEBUG: No se encontraron aplicaciones para flex staff. Verificando qué datos existen...")
                 
                 # Verificar posiciones disponibles
-                cursor.execute("SELECT DISTINCT role FROM applications WHERE status = 'Active'")
+                cursor.execute(f"SELECT DISTINCT role FROM {self.applications_table} WHERE status = 'Active'")
                 positions = cursor.fetchall()
                 print(f"DEBUG: Posiciones disponibles: {positions}")
                 
                 # Verificar unidades disponibles
-                cursor.execute("SELECT DISTINCT unit FROM applications WHERE status = 'Active'")
+                cursor.execute(f"SELECT DISTINCT unit FROM {self.applications_table} WHERE status = 'Active'")
                 units = cursor.fetchall()
                 print(f"DEBUG: Unidades disponibles: {units}")
                 
                 # Buscar aplicaciones que contengan "Analista"
-                cursor.execute("""
+                cursor.execute(f"""
                     SELECT name_element, unit, service, role 
-                    FROM applications 
+                    FROM {self.applications_table} 
                     WHERE status = 'Active' AND (role LIKE '%Analista%' OR service LIKE '%Analista%')
                 """)
                 analista_apps = cursor.fetchall()
                 print(f"DEBUG: Aplicaciones que contienen 'Analista': {analista_apps}")
                 
                 # Buscar aplicaciones que contengan "Recursos Humanos"
-                cursor.execute("""
+                cursor.execute(f"""
                     SELECT name_element, unit, service, role 
-                    FROM applications 
+                    FROM {self.applications_table} 
                     WHERE status = 'Active' AND (unit LIKE '%Recursos Humanos%' OR service LIKE '%Recursos Humanos%')
                 """)
                 rh_apps = cursor.fetchall()
@@ -904,7 +910,7 @@ class AccessManagementService:
             placeholders = ', '.join(['?'] * len(columns))
 
             cursor.execute(f'''
-                INSERT INTO applications ({", ".join(columns)})
+                INSERT INTO {self.applications_table} ({", ".join(columns)})
                 OUTPUT INSERTED.id
                 VALUES ({placeholders})
             ''', values)
@@ -926,7 +932,7 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute('SELECT COUNT(*) FROM applications WHERE id = ?', (app_id,))
+            cursor.execute(f'SELECT COUNT(*) FROM {self.applications_table} WHERE id = ?', (app_id,))
             result = cursor.fetchone()
             if not result or result[0] == 0:
                 return False, f"Aplicación con ID {app_id} no encontrada"
@@ -945,7 +951,7 @@ class AccessManagementService:
                 return False, "No hay campos válidos para actualizar"
 
             params.append(app_id)
-            query = f"UPDATE applications SET {', '.join(set_clauses)} WHERE id = ?"
+            query = f"UPDATE {self.applications_table} SET {', '.join(set_clauses)} WHERE id = ?"
             cursor.execute(query, params)
 
             conn.commit()
@@ -962,20 +968,20 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute('SELECT name_element FROM applications WHERE id = ?', (app_id,))
+            cursor.execute(f'SELECT name_element FROM {self.applications_table} WHERE id = ?', (app_id,))
             result = cursor.fetchone()
             if not result:
                 return False, f"Aplicación con ID {app_id} no encontrada"
 
             app_name = result[0]
 
-            cursor.execute('SELECT COUNT(*) FROM historico WHERE app_access_name = ?', (app_name,))
+            cursor.execute(f'SELECT COUNT(*) FROM {self.historico_table} WHERE app_access_name = ?', (app_name,))
             historico_count = cursor.fetchone()[0]
 
             if historico_count > 0:
                 return False, f"No se puede eliminar la aplicación porque tiene {historico_count} registros en el historial"
 
-            cursor.execute('DELETE FROM applications WHERE id = ?', (app_id,))
+            cursor.execute(f'DELETE FROM {self.applications_table} WHERE id = ?', (app_id,))
 
             conn.commit()
             conn.close()
@@ -1013,9 +1019,9 @@ class AccessManagementService:
                 try:
                     conn = self.get_connection()
                     cursor = conn.cursor()
-                    cursor.execute('''
+                    cursor.execute(f'''
                         SELECT TOP 1 unit, service, role, system_description
-                        FROM applications 
+                        FROM {self.applications_table} 
                         WHERE name_element = ? AND role = ?
                     ''', (app_name, position))
                     
@@ -1086,8 +1092,8 @@ class AccessManagementService:
             # PERO permite registros de offboarding incluso si ya existe un registro pendiente
             process_access = record_data.get('process_access', '')
             if process_access != 'offboarding':
-                cursor.execute('''
-                    SELECT COUNT(*) FROM historico
+                cursor.execute(f'''
+                    SELECT COUNT(*) FROM {self.historico_table}
                     WHERE scotia_id = ?
                       AND status = 'Pendiente'
                       AND UPPER(TRIM(app_access_name)) = UPPER(TRIM(?))
@@ -1135,8 +1141,8 @@ class AccessManagementService:
             
             print(f"DEBUG: Parámetros para inserción: {params}")
             
-            cursor.execute('''
-                INSERT INTO historico 
+            cursor.execute(f'''
+                INSERT INTO {self.historico_table} 
                 (scotia_id, employee_email, case_id, responsible, record_date, request_date, process_access, subunit, 
                  event_description, ticket_email, app_access_name, computer_system_type, status, 
                  closing_date_app, closing_date_ticket, app_quality, confirmation_by_user, comment, 
@@ -1161,7 +1167,7 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT 
                     h.*, 
                     a.logical_access_name AS app_logical_access_name,
@@ -1169,7 +1175,7 @@ class AccessManagementService:
                     a.unit AS app_unit,
                     a.subunit AS app_subunit,
                     a.position_role AS app_position_role
-                FROM historico h
+                FROM {self.historico_table} h
                 LEFT JOIN (
                     SELECT 
                         logical_access_name,
@@ -1178,7 +1184,7 @@ class AccessManagementService:
                         subunit,
                         position_role,
                         ROW_NUMBER() OVER (PARTITION BY logical_access_name ORDER BY id) as rn
-                    FROM applications
+                    FROM {self.applications_table}
                 ) a ON h.app_access_name = a.logical_access_name AND a.rn = 1
                 WHERE h.scotia_id = ?
                 ORDER BY h.record_date DESC
@@ -1201,7 +1207,7 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
 
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT DISTINCT
                     h.scotia_id,
                     h.subunit as unit,
@@ -1211,8 +1217,8 @@ class AccessManagementService:
                     h.status,
                     h.process_access,
                     a.position_role
-                FROM historico h
-                LEFT JOIN applications a ON h.app_access_name = a.logical_access_name
+                FROM {self.historico_table} h
+                LEFT JOIN {self.applications_table} a ON h.app_access_name = a.logical_access_name
                 WHERE h.scotia_id = ?
                 AND h.status = 'closed completed'
                 AND h.process_access IN ('onboarding', 'lateral_movement')
@@ -1252,9 +1258,9 @@ class AccessManagementService:
                 print(f"DEBUG: Lateral Movement: mostrar todos cuyo último proceso fue lateral_movement")
 
             # Obtener la posición temporal específica de Flex Staff más reciente
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT TOP 1 event_description
-                FROM historico 
+                FROM {self.historico_table} 
                 WHERE scotia_id = ? 
                 AND process_access = 'flex_staff' 
                 AND status = 'closed completed'
@@ -1275,9 +1281,9 @@ class AccessManagementService:
             flex_staff_filter = f'%flex staff - {flex_staff_position}%' if flex_staff_position else '%flex staff%'
 
             # Primero verificar qué registros hay en el historial para este empleado
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT COUNT(*), process_access, status
-                FROM historico
+                FROM {self.historico_table}
                 WHERE scotia_id = ?
                 GROUP BY process_access, status
             ''', (scotia_id,))
@@ -1290,9 +1296,9 @@ class AccessManagementService:
             print(f"DEBUG: Total de registros en historial: {total_registros}")
             
             # Verificar específicamente registros 'closed completed'
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT COUNT(*), process_access
-                FROM historico
+                FROM {self.historico_table}
                 WHERE scotia_id = ?
                 AND status = 'closed completed'
                 AND process_access IN ('onboarding', 'lateral_movement', 'flex_staff', 'manual_access', 'offboarding')
@@ -1304,13 +1310,13 @@ class AccessManagementService:
                 print(f"  {proc}: {count}")
             
             # Verificar cuántos accesos tienen offboarding como último proceso
-            cursor.execute('''
+            cursor.execute(f'''
                 WITH AllProcessesByApp AS (
                     SELECT 
                         app_access_name,
                         process_access as last_process,
                         MAX(record_date) as last_record_date
-                    FROM historico
+                    FROM {self.historico_table}
                     WHERE scotia_id = ?
                     AND status = 'closed completed'
                     AND process_access IN ('onboarding', 'lateral_movement', 'flex_staff', 'manual_access', 'offboarding')
@@ -1345,7 +1351,7 @@ class AccessManagementService:
                         app_access_name,
                         process_access as last_process,
                         MAX(record_date) as last_record_date
-                    FROM historico
+                    FROM {historico}
                     WHERE scotia_id = ?
                     AND status = 'closed completed'
                     AND process_access IN ('onboarding', 'lateral_movement', 'flex_staff', 'manual_access', 'offboarding')
@@ -1386,8 +1392,8 @@ class AccessManagementService:
                         WHEN h.process_access IN ('onboarding', 'lateral_movement') THEN 'Aplicación'
                         ELSE 'Otro'
                     END as access_type
-                FROM historico h
-                LEFT JOIN applications a ON h.app_access_name = a.logical_access_name
+                FROM {historico} h
+                LEFT JOIN {applications} a ON h.app_access_name = a.logical_access_name
                 INNER JOIN LastProcessByApp lp ON h.app_access_name = lp.app_access_name AND lp.rn = 1
                 WHERE h.scotia_id = ?
                 AND h.status = 'closed completed'
@@ -1430,7 +1436,11 @@ class AccessManagementService:
                 params = (scotia_id, scotia_id, flex_staff_filter)
                 print(f"DEBUG: Sin filtro lateral_movement (no hay headcount o unidad_subunidad)")
             
-            query = query.format(lateral_condition=lateral_condition)
+            query = query.format(
+                historico=self.historico_table,
+                applications=self.applications_table,
+                lateral_condition=lateral_condition
+            )
             print(f"DEBUG: Ejecutando consulta con {len(params)} parámetros")
             print(f"DEBUG: Parámetros: scotia_id (2 veces)={scotia_id}, unidad_subunidad={unidad_subunidad if has_headcount else 'N/A'}, position={current_position if has_headcount else 'N/A'}, flex_staff_filter={flex_staff_filter}")
             try:
@@ -1614,7 +1624,7 @@ class AccessManagementService:
             
             # Buscar directamente en la base de datos todos los accesos completados del empleado
             # que NO hayan sido ya revocados en un offboarding anterior
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT DISTINCT
                     h.id,
                     h.app_access_name,
@@ -1622,7 +1632,7 @@ class AccessManagementService:
                     h.record_date,
                     h.subunit,
                     h.event_description
-                FROM historico h
+                FROM {self.historico_table} h
                 WHERE h.scotia_id = ?
                 AND UPPER(LTRIM(RTRIM(h.status))) = 'CLOSED COMPLETED'
                 AND h.process_access IN ('onboarding', 'lateral_movement', 'flex_staff', 'manual_access')
@@ -1630,7 +1640,7 @@ class AccessManagementService:
                 AND NOT EXISTS (
                     -- Verificar que no haya un offboarding completado posterior para este mismo acceso
                     SELECT 1 
-                    FROM historico h2 
+                    FROM {self.historico_table} h2 
                     WHERE h2.scotia_id = h.scotia_id
                     AND h2.app_access_name = h.app_access_name
                     AND h2.process_access = 'offboarding'
@@ -1803,7 +1813,7 @@ class AccessManagementService:
                 placeholders = ','.join(['?'] * len(app_names))
                 cursor.execute(f'''
                     SELECT DISTINCT a.logical_access_name, a.unidad_subunidad
-                    FROM applications a
+                    FROM {self.applications_table} a
                     WHERE a.logical_access_name IN ({placeholders})
                 ''', tuple(app_names))
                 for row in cursor.fetchall():
@@ -1858,9 +1868,9 @@ class AccessManagementService:
                         # Buscar la app completa en applications para obtener todos los datos
                         conn = self.get_connection()
                         cursor = conn.cursor()
-                        cursor.execute('''
+                        cursor.execute(f'''
                             SELECT logical_access_name, unidad_subunidad, subunit, path_email_url
-                            FROM applications
+                            FROM {self.applications_table}
                             WHERE logical_access_name = ?
                         ''', (current_acc.get('logical_access_name', ''),))
                         app_data = cursor.fetchone()
@@ -2160,7 +2170,7 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT DISTINCT
                     h.app_access_name as logical_access_name,
                     h.subunit as unit,
@@ -2169,7 +2179,7 @@ class AccessManagementService:
                     h.record_date,
                     h.status,
                     h.expiration_date
-                FROM historico h
+                FROM {self.historico_table} h
                 WHERE h.scotia_id = ?
                 AND h.process_access = 'flex_staff'
                 AND h.app_access_name IS NOT NULL
@@ -2194,7 +2204,7 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT DISTINCT
                     h.app_access_name as logical_access_name,
                     h.subunit as unit,
@@ -2203,7 +2213,7 @@ class AccessManagementService:
                     h.record_date,
                     h.status,
                     h.expiration_date
-                FROM historico h
+                FROM {self.historico_table} h
                 WHERE h.scotia_id = ?
                 AND h.process_access = 'flex_staff'
                 AND h.app_access_name IS NOT NULL
@@ -2222,9 +2232,9 @@ class AccessManagementService:
             # Si no hay resultados, verificar qué registros existen para este empleado
             if len(access_list) == 0:
                 print(f"DEBUG: No se encontraron accesos flex_staff. Verificando registros del empleado...")
-                cursor.execute('''
+                cursor.execute(f'''
                     SELECT process_access, app_access_name, status, event_description
-                    FROM historico 
+                    FROM {self.historico_table} 
                     WHERE scotia_id = ? 
                     ORDER BY record_date DESC
                 ''', (scotia_id,))
@@ -2467,14 +2477,15 @@ class AccessManagementService:
             with self.db_manager.get_connection() as conn:
                 cursor = conn.cursor()
                 
+                historico_table = self.historico_table
                 if delete_all:
                     cursor.execute(
-                        "DELETE FROM historico WHERE CAST(scotia_id AS NVARCHAR(50)) = ? AND case_id = ?",
+                        f"DELETE FROM {historico_table} WHERE CAST(scotia_id AS NVARCHAR(50)) = ? AND case_id = ?",
                         (scotia_id, case_id)
                     )
                     print(f"[DEBUG] delete_all affected rows: {cursor.rowcount}")
                 elif app_access_name:
-                    cursor.execute('SELECT id FROM historico WHERE CAST(scotia_id AS NVARCHAR(50)) = ? AND case_id = ? AND app_access_name = ?', (scotia_id, case_id, app_access_name))
+                    cursor.execute(f'SELECT id FROM {historico_table} WHERE CAST(scotia_id AS NVARCHAR(50)) = ? AND case_id = ? AND app_access_name = ?', (scotia_id, case_id, app_access_name))
                     
                     if not cursor.fetchone():
                         print("[DEBUG] No matching record found for provided app_access_name")
@@ -2482,13 +2493,13 @@ class AccessManagementService:
                     
                     # Eliminar solo el registro específico
                     cursor.execute(
-                        "DELETE FROM historico WHERE CAST(scotia_id AS NVARCHAR(50)) = ? AND case_id = ? AND app_access_name = ?",
+                        f"DELETE FROM {historico_table} WHERE CAST(scotia_id AS NVARCHAR(50)) = ? AND case_id = ? AND app_access_name = ?",
                         (scotia_id, case_id, app_access_name)
                     )
                     print(f"[DEBUG] delete specific rowcount: {cursor.rowcount}")
                 else:
                     # Si no se proporciona app_access_name, eliminar solo el primer registro encontrado
-                    cursor.execute('SELECT TOP 1 id FROM historico WHERE CAST(scotia_id AS NVARCHAR(50)) = ? AND case_id = ?', (scotia_id, case_id))
+                    cursor.execute(f'SELECT TOP 1 id FROM {historico_table} WHERE CAST(scotia_id AS NVARCHAR(50)) = ? AND case_id = ?', (scotia_id, case_id))
                     
                     if not cursor.fetchone():
                         print("[DEBUG] No records found for given scotia_id and case_id")
@@ -2496,7 +2507,7 @@ class AccessManagementService:
                     
                     # Eliminar solo el primer registro
                     cursor.execute(
-                        "DELETE TOP (1) FROM historico WHERE CAST(scotia_id AS NVARCHAR(50)) = ? AND case_id = ?",
+                        f"DELETE TOP (1) FROM {historico_table} WHERE CAST(scotia_id AS NVARCHAR(50)) = ? AND case_id = ?",
                         (scotia_id, case_id)
                     )
                     print(f"[DEBUG] delete first row rowcount: {cursor.rowcount}")
@@ -2643,7 +2654,7 @@ class AccessManagementService:
             # Obtener aplicaciones únicas del historial y de la tabla applications
             cursor.execute(f'''
                 SELECT DISTINCT app_access_name as application_name
-                FROM historico 
+                FROM {self.historico_table} 
                 WHERE app_access_name IS NOT NULL AND app_access_name != ''
                 UNION
                 SELECT DISTINCT logical_access_name as application_name
@@ -2724,14 +2735,14 @@ class AccessManagementService:
             stats = {}
             
             # 1. Estadísticas por unidad
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT h.area as unidad, COUNT(*) as total_registros,
                        COUNT(CASE WHEN h.status = 'Completado' THEN 1 END) as completados,
                        COUNT(CASE WHEN h.status = 'Pendiente' THEN 1 END) as pendientes,
                        COUNT(CASE WHEN h.status = 'En Proceso' THEN 1 END) as en_proceso,
                        COUNT(CASE WHEN h.status = 'Cancelado' THEN 1 END) as cancelados,
                        COUNT(CASE WHEN h.status = 'Rechazado' THEN 1 END) as rechazados
-                FROM historico h
+                FROM {self.historico_table} h
                 WHERE h.area IS NOT NULL AND h.area != ''
                 GROUP BY h.area
                 ORDER BY total_registros DESC
@@ -2739,14 +2750,14 @@ class AccessManagementService:
             stats['por_unidad'] = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
             
             # 2. Estadísticas por subunidad
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT h.subunit as subunidad, h.area as unidad, COUNT(*) as total_registros,
                        COUNT(CASE WHEN h.status = 'Completado' THEN 1 END) as completados,
                        COUNT(CASE WHEN h.status = 'Pendiente' THEN 1 END) as pendientes,
                        COUNT(CASE WHEN h.status = 'En Proceso' THEN 1 END) as en_proceso,
                        COUNT(CASE WHEN h.status = 'Cancelado' THEN 1 END) as cancelados,
                        COUNT(CASE WHEN h.status = 'Rechazado' THEN 1 END) as rechazados
-                FROM historico h
+                FROM {self.historico_table} h
                 WHERE h.subunit IS NOT NULL AND h.subunit != ''
                 GROUP BY h.subunit, h.area
                 ORDER BY total_registros DESC
@@ -2761,7 +2772,7 @@ class AccessManagementService:
                        COUNT(CASE WHEN h.status = 'En Proceso' THEN 1 END) as en_proceso,
                        COUNT(CASE WHEN h.status = 'Cancelado' THEN 1 END) as cancelados,
                        COUNT(CASE WHEN h.status = 'Rechazado' THEN 1 END) as rechazados
-                FROM historico h
+                FROM {self.historico_table} h
                 INNER JOIN {self.headcount_table} head ON h.scotia_id = head.scotia_id
                 WHERE head.position IS NOT NULL AND head.position != ''
                 GROUP BY head.position, head.unit
@@ -2770,14 +2781,14 @@ class AccessManagementService:
             stats['por_puesto'] = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
             
             # 4. Estadísticas por aplicación
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT h.app_access_name as aplicacion, COUNT(*) as total_registros,
                        COUNT(CASE WHEN h.status = 'Completado' THEN 1 END) as completados,
                        COUNT(CASE WHEN h.status = 'Pendiente' THEN 1 END) as pendientes,
                        COUNT(CASE WHEN h.status = 'En Proceso' THEN 1 END) as en_proceso,
                        COUNT(CASE WHEN h.status = 'Cancelado' THEN 1 END) as cancelados,
                        COUNT(CASE WHEN h.status = 'Rechazado' THEN 1 END) as rechazados
-                FROM historico h
+                FROM {self.historico_table} h
                 WHERE h.app_access_name IS NOT NULL AND h.app_access_name != ''
                 GROUP BY h.app_access_name
                 ORDER BY total_registros DESC
@@ -2785,14 +2796,14 @@ class AccessManagementService:
             stats['por_aplicacion'] = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
             
             # 5. Estadísticas por proceso
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT h.process_access as proceso, COUNT(*) as total_registros,
                        COUNT(CASE WHEN h.status = 'Completado' THEN 1 END) as completados,
                        COUNT(CASE WHEN h.status = 'Pendiente' THEN 1 END) as pendientes,
                        COUNT(CASE WHEN h.status = 'En Proceso' THEN 1 END) as en_proceso,
                        COUNT(CASE WHEN h.status = 'Cancelado' THEN 1 END) as cancelados,
                        COUNT(CASE WHEN h.status = 'Rechazado' THEN 1 END) as rechazados
-                FROM historico h
+                FROM {self.historico_table} h
                 WHERE h.process_access IS NOT NULL AND h.process_access != ''
                 GROUP BY h.process_access
                 ORDER BY total_registros DESC
@@ -2800,7 +2811,7 @@ class AccessManagementService:
             stats['por_proceso'] = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
             
             # 6. Estadísticas generales
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT 
                     COUNT(*) as total_registros,
                     COUNT(CASE WHEN h.status = 'Completado' THEN 1 END) as completados,
@@ -2808,7 +2819,7 @@ class AccessManagementService:
                     COUNT(CASE WHEN h.status = 'En Proceso' THEN 1 END) as en_proceso,
                     COUNT(CASE WHEN h.status = 'Cancelado' THEN 1 END) as cancelados,
                     COUNT(CASE WHEN h.status = 'Rechazado' THEN 1 END) as rechazados
-                FROM historico h
+                FROM {self.historico_table} h
             ''')
             stats['generales'] = dict(zip([col[0] for col in cursor.description], cursor.fetchone()))
             
@@ -2833,15 +2844,15 @@ class AccessManagementService:
             cursor = conn.cursor()
             
             # Query base
-            query = '''
+            query = f'''
                 SELECT h.*, a.logical_access_name, a.description as app_description
-                FROM historico h
+                FROM {self.historico_table} h
                 LEFT JOIN (
                     SELECT 
                         logical_access_name,
                         description,
                         ROW_NUMBER() OVER (PARTITION BY logical_access_name ORDER BY id) as rn
-                    FROM applications
+                    FROM {self.applications_table}
                 ) a ON h.app_access_name = a.logical_access_name AND a.rn = 1
             '''
             
@@ -2915,7 +2926,7 @@ class AccessManagementService:
             # Verificar si ya hay registros pendientes para este empleado
             conn = self.get_connection()
             cursor = conn.cursor()
-            cursor.execute('SELECT COUNT(*) FROM historico WHERE scotia_id = ? AND status = \'Pendiente\'', (scotia_id,))
+            cursor.execute(f'SELECT COUNT(*) FROM {self.historico_table} WHERE scotia_id = ? AND status = \'Pendiente\'', (scotia_id,))
             existing_pending = cursor.fetchone()[0]
             
             if existing_pending > 0:
@@ -3112,9 +3123,9 @@ class AccessManagementService:
             
             # Verificar que el acceso existe y es del tipo correcto
             print(f"DEBUG: Buscando acceso {access_type} para {app_name} del empleado {scotia_id}")
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT h.id, h.app_access_name, h.process_access, h.event_description, h.status
-                FROM historico h
+                FROM {self.historico_table} h
                 WHERE h.scotia_id = ? 
                 AND h.app_access_name = ?
                 AND h.process_access = ?
@@ -3127,9 +3138,9 @@ class AccessManagementService:
             if not access_record:
                 print(f"DEBUG: No se encontró acceso {access_type} con status 'Pendiente'. Verificando otros estados...")
                 # Buscar con otros estados
-                cursor.execute('''
+                cursor.execute(f'''
                     SELECT h.id, h.app_access_name, h.process_access, h.event_description, h.status
-                    FROM historico h
+                    FROM {self.historico_table} h
                     WHERE h.scotia_id = ? 
                     AND h.app_access_name = ?
                     AND h.process_access = ?
@@ -3150,8 +3161,8 @@ class AccessManagementService:
             case_id = f"REVOKE-{datetime.now().strftime('%Y%m%d%H%M%S')}-{scotia_id}"
             event_description = f"Revocación de acceso {access_type} para {app_name}"
             
-            cursor.execute('''
-                INSERT INTO historico (
+            cursor.execute(f'''
+                INSERT INTO {self.historico_table} (
                     scotia_id, employee_email, case_id, responsible, record_date, request_date,
                     process_access, subunit, event_description,
                     ticket_email, app_access_name, computer_system_type, duration_of_access, status,
@@ -3168,8 +3179,8 @@ class AccessManagementService:
             ))
             
             # Marcar el acceso original como revocado
-            cursor.execute('''
-                UPDATE historico 
+            cursor.execute(f'''
+                UPDATE {self.historico_table} 
                 SET status = 'Revocado', 
                     closing_date_app = ?,
                     comment = COALESCE(comment, '') + ' | Revocado por ' + ?
@@ -3208,7 +3219,7 @@ class AccessManagementService:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT DISTINCT 
                     h.app_access_name,
                     h.process_access,
@@ -3216,7 +3227,7 @@ class AccessManagementService:
                     h.record_date,
                     h.responsible,
                     h.case_id
-                FROM historico h
+                FROM {self.historico_table} h
                 WHERE h.scotia_id = ? 
                 AND h.process_access IN ('flex_staff', 'manual_access')
                 AND h.status = 'Pendiente'

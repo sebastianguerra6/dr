@@ -15,7 +15,7 @@ from datetime import datetime
 # Configuración de SQL Server
 SQL_SERVER_CONFIG = {
     'server': 'localhost\\SQLEXPRESS01',  # Instancia SQLEXPRESS
-    'database': 'GAMLO_Empleados',
+    'database': 'GAMLO_Empleados_DR',
     'username': '',  # No necesario con Windows Authentication
     'password': '',  # No necesario con Windows Authentication
     'driver': '{ODBC Driver 17 for SQL Server}',  # Ajustar según tu versión

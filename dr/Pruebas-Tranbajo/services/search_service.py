@@ -10,6 +10,7 @@ import os
 # Agregar el directorio padre al path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from config import get_database_connection
+from services.access_management_service import access_service
 
 
 class SearchService:
@@ -17,6 +18,14 @@ class SearchService:
     
     def __init__(self):
         self.db_manager = get_database_connection()
+        self.access_service = access_service
+        self.historico_table = self.access_service.historico_table
+        self.headcount_table = self.access_service.headcount_table
+        self._headcount_view_query = self.access_service._get_headcount_select()
+    
+    def _headcount_view(self) -> str:
+        """Subconsulta reutilizable del headcount con columnas legacy."""
+        return f"({self._headcount_view_query}) head"
     
     def get_connection(self) -> pyodbc.Connection:
         """Obtiene una conexión a la base de datos"""
@@ -37,7 +46,7 @@ class SearchService:
             cursor = conn.cursor()
             
             # Query base - seleccionar todos los campos relevantes
-            query = """
+            query = f"""
                 SELECT id, case_id, scotia_id, process_access, record_date, request_date,
                        status, comment, responsible, subunit, event_description,
                        ticket_email, app_access_name, closing_date_app, app_quality,
@@ -45,7 +54,7 @@ class SearchService:
                        duration_of_access, closing_date_ticket, comment_tq, ticket_quality,
                        general_status_ticket, general_status_case, average_time_open_ticket,
                        sla_app, sla_ticket, sla_case
-                FROM historico
+                FROM {self.historico_table}
             """
             
             conditions = []
@@ -164,12 +173,12 @@ class SearchService:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            query = """
+            query = f"""
                 SELECT scotia_id, employee, full_name, email, position, manager, 
                        senior_manager, unit, unidad_subunidad, start_date, ceco, skip_level, 
                        cafe_alcides, parents, personal_email, size, birthday, 
                        validacion, activo
-                FROM headcount
+                FROM {self._headcount_view()}
                 WHERE employee LIKE ?
                 ORDER BY full_name
             """
@@ -199,12 +208,12 @@ class SearchService:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            query = """
+            query = f"""
                 SELECT scotia_id, employee, full_name, email, position, manager, 
                        senior_manager, unit, unidad_subunidad, start_date, ceco, skip_level, 
                        cafe_alcides, parents, personal_email, size, birthday, 
                        validacion, activo
-                FROM headcount
+                FROM {self._headcount_view()}
                 ORDER BY full_name
             """
             
@@ -238,12 +247,12 @@ class SearchService:
             cursor = conn.cursor()
             
             # Obtener el scotia_id del registro para obtener el email del headcount
-            cursor.execute('SELECT scotia_id FROM historico WHERE case_id = ?', (case_id,))
+            cursor.execute(f'SELECT scotia_id FROM {self.historico_table} WHERE case_id = ?', (case_id,))
             scotia_id_result = cursor.fetchone()
             if scotia_id_result:
                 scotia_id = scotia_id_result[0]
                 # Obtener el email del empleado desde headcount
-                cursor.execute('SELECT email FROM headcount WHERE scotia_id = ?', (scotia_id,))
+                cursor.execute(f'SELECT email FROM {self.headcount_table} WHERE scotia_id = ?', (scotia_id,))
                 email_result = cursor.fetchone()
                 if email_result:
                     datos_actualizados['employee_email'] = email_result[0]
@@ -264,7 +273,7 @@ class SearchService:
             set_clauses.append("record_date = datetime('now')")
             
             query = f"""
-                UPDATE historico 
+                UPDATE {self.historico_table} 
                 SET {', '.join(set_clauses)}
                 WHERE case_id = ?
             """

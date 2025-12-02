@@ -10,6 +10,7 @@ class DropdownService:
     
     def __init__(self):
         self.access_service = access_service
+        self.applications_table = self.access_service.applications_table
     
     def get_connection(self) -> pyodbc.Connection:
         """Obtiene una conexión a la base de datos"""
@@ -21,9 +22,9 @@ class DropdownService:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT DISTINCT unit 
-                FROM applications 
+                FROM {self.applications_table} 
                 WHERE unit IS NOT NULL AND unit != ''
                 ORDER BY unit
             """)
@@ -43,9 +44,9 @@ class DropdownService:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT DISTINCT service 
-                FROM applications 
+                FROM {self.applications_table} 
                 WHERE service IS NOT NULL AND service != ''
                 ORDER BY service
             """)
@@ -65,9 +66,9 @@ class DropdownService:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT DISTINCT role 
-                FROM applications 
+                FROM {self.applications_table} 
                 WHERE role IS NOT NULL AND role != ''
                 ORDER BY role
             """)
@@ -87,9 +88,9 @@ class DropdownService:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT DISTINCT roles_and_profiles 
-                FROM applications 
+                FROM {self.applications_table} 
                 WHERE roles_and_profiles IS NOT NULL AND roles_and_profiles != ''
                 ORDER BY roles_and_profiles
             """)
@@ -109,9 +110,9 @@ class DropdownService:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT DISTINCT system_jurisdiction 
-                FROM applications 
+                FROM {self.applications_table} 
                 WHERE system_jurisdiction IS NOT NULL AND system_jurisdiction != ''
                 ORDER BY system_jurisdiction
             """)
@@ -131,9 +132,9 @@ class DropdownService:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT DISTINCT application_owner 
-                FROM applications 
+                FROM {self.applications_table} 
                 WHERE application_owner IS NOT NULL AND application_owner != ''
                 ORDER BY application_owner
             """)
@@ -153,9 +154,9 @@ class DropdownService:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT DISTINCT critical_non_critical 
-                FROM applications 
+                FROM {self.applications_table} 
                 WHERE critical_non_critical IS NOT NULL AND critical_non_critical != ''
                 ORDER BY critical_non_critical
             """)
@@ -175,9 +176,9 @@ class DropdownService:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT DISTINCT type_of_element 
-                FROM applications 
+                FROM {self.applications_table} 
                 WHERE type_of_element IS NOT NULL AND type_of_element != ''
                 ORDER BY type_of_element
             """)
@@ -197,9 +198,9 @@ class DropdownService:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT DISTINCT status 
-                FROM applications 
+                FROM {self.applications_table} 
                 WHERE status IS NOT NULL AND status != ''
                 ORDER BY status
             """)
@@ -219,9 +220,9 @@ class DropdownService:
             conn = self.get_connection()
             cursor = conn.cursor()
             
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT DISTINCT log_in_information 
-                FROM applications 
+                FROM {self.applications_table} 
                 WHERE log_in_information IS NOT NULL AND log_in_information != ''
                 ORDER BY log_in_information
             """)
@@ -242,7 +243,7 @@ class DropdownService:
             cursor = conn.cursor()
             
             # Solo obtener de la tabla applications (que tiene las aplicaciones reales)
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT DISTINCT 
                     CONCAT(
                         ISNULL(unit, ''),
@@ -252,7 +253,7 @@ class DropdownService:
                         END,
                         ISNULL(service, '')
                     ) AS unidad_subunidad
-                FROM applications 
+                FROM {self.applications_table} 
                 WHERE (unit IS NOT NULL AND unit != '') OR (service IS NOT NULL AND service != '')
                 ORDER BY unidad_subunidad
             """)

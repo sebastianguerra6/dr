@@ -660,6 +660,10 @@ class EdicionBusquedaFrame:
             import os
             sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'services'))
             from access_management_service import access_service
+            historico_table = access_service.historico_table
+            applications_table = access_service.applications_table
+            headcount_table = access_service.headcount_table
+            historico_table = access_service.historico_table
             
             # Obtener el registro completo del historial usando una combinación de campos
             conn = access_service.get_connection()
@@ -668,8 +672,8 @@ class EdicionBusquedaFrame:
             # Debug: imprimir los valores que estamos buscando
             print(f"DEBUG: Buscando registro con ID: {record_id}")
             
-            cursor.execute('''
-                SELECT * FROM historico 
+            cursor.execute(f'''
+                SELECT * FROM {historico_table} 
                 WHERE id = ?
             ''', (record_id,))
             row = cursor.fetchone()
@@ -714,17 +718,19 @@ class EdicionBusquedaFrame:
             import os
             sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'services'))
             from access_management_service import access_service
+            historico_table = access_service.historico_table
+            headcount_table = access_service.headcount_table
             
             conn = access_service.get_connection()
             cursor = conn.cursor()
             
             # Obtener el scotia_id del registro para obtener el email del headcount
-            cursor.execute('SELECT scotia_id FROM historico WHERE id = ?', (record_id,))
+            cursor.execute(f'SELECT scotia_id FROM {historico_table} WHERE id = ?', (record_id,))
             scotia_id_result = cursor.fetchone()
             if scotia_id_result:
                 scotia_id = scotia_id_result[0]
                 # Obtener el email del empleado desde headcount
-                cursor.execute('SELECT email FROM headcount WHERE scotia_id = ?', (scotia_id,))
+                cursor.execute(f'SELECT email FROM {headcount_table} WHERE scotia_id = ?', (scotia_id,))
                 email_result = cursor.fetchone()
                 if email_result:
                     data['employee_email'] = email_result[0]
@@ -744,7 +750,7 @@ class EdicionBusquedaFrame:
             # Agregar el ID al WHERE
             params.append(record_id)
             
-            query = f"UPDATE historico SET {', '.join(set_clauses)} WHERE id = ?"
+            query = f"UPDATE {historico_table} SET {', '.join(set_clauses)} WHERE id = ?"
             
             print(f"DEBUG: Query de actualización: {query}")
             print(f"DEBUG: Parámetros: {params}")
@@ -766,12 +772,14 @@ class EdicionBusquedaFrame:
             import os
             sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'services'))
             from access_management_service import access_service
+            historico_table = access_service.historico_table
+            headcount_table = access_service.headcount_table
             
             conn = access_service.get_connection()
             cursor = conn.cursor()
             
             # Obtener el email del empleado desde headcount
-            cursor.execute('SELECT email FROM headcount WHERE scotia_id = ?', (scotia_id,))
+            cursor.execute(f'SELECT email FROM {headcount_table} WHERE scotia_id = ?', (scotia_id,))
             email_result = cursor.fetchone()
             if email_result:
                 data['employee_email'] = email_result[0]
@@ -792,7 +800,7 @@ class EdicionBusquedaFrame:
             where_clause = "scotia_id = ? AND case_id = ? AND process_access = ? AND app_access_name = ?"
             params.extend([scotia_id, case_id, process_access, app_access_name])
             
-            query = f"UPDATE historico SET {', '.join(set_clauses)} WHERE {where_clause}"
+            query = f"UPDATE {historico_table} SET {', '.join(set_clauses)} WHERE {where_clause}"
             
             print(f"DEBUG: Query de actualización: {query}")
             print(f"DEBUG: Parámetros: {params}")
@@ -1157,18 +1165,18 @@ class EdicionBusquedaFrame:
             cursor = conn.cursor()
             
             # Primero verificar cuántos registros hay en total
-            cursor.execute('SELECT COUNT(*) FROM historico')
+            cursor.execute(f'SELECT COUNT(*) FROM {historico_table}')
             total_count = cursor.fetchone()[0]
             print(f"DEBUG: Total de registros en historico: {total_count}")
             
             # Verificar registros recientes
-            cursor.execute('SELECT TOP 5 scotia_id, process_access, event_description, record_date FROM historico ORDER BY record_date DESC')
+            cursor.execute(f'SELECT TOP 5 scotia_id, process_access, event_description, record_date FROM {historico_table} ORDER BY record_date DESC')
             recent_records = cursor.fetchall()
             print("DEBUG: Últimos 5 registros en la base de datos:")
             for record in recent_records:
                 print(f"  SID={record[0]}, Process={record[1]}, Event={record[2][:30]}..., Date={record[3]}")
             
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT h.id, h.scotia_id, h.case_id, h.responsible, h.record_date, h.request_date, 
                        h.process_access, h.subunit, h.event_description, h.ticket_email, h.app_access_name, 
                        h.computer_system_type, h.status, h.closing_date_app, h.closing_date_ticket, 
@@ -1177,15 +1185,15 @@ class EdicionBusquedaFrame:
                        h.general_status_case, h.sla_app, h.sla_ticket, h.sla_case, h.employee_email,
                        a.logical_access_name, a.description as app_description,
                        hc.email as headcount_email
-                FROM historico h
+                FROM {historico_table} h
                 LEFT JOIN (
                     SELECT 
                         logical_access_name,
                         description,
                         ROW_NUMBER() OVER (PARTITION BY logical_access_name ORDER BY id) as rn
-                    FROM applications
+                    FROM {applications_table}
                 ) a ON h.app_access_name = a.logical_access_name AND a.rn = 1
-                LEFT JOIN headcount hc ON h.scotia_id = hc.scotia_id
+                LEFT JOIN {headcount_table} hc ON h.scotia_id = hc.scotia_id
                 ORDER BY h.record_date DESC
             ''')
             rows = cursor.fetchall()
@@ -1871,9 +1879,10 @@ Aplicaciones Únicas: {generales.get('aplicaciones_unicas', 0)}
 class CreacionPersonaFrame:
     """Componente para la gestión completa de headcount y applications"""
     
-    def __init__(self, parent, service=None):
+    def __init__(self, parent, service=None, access_service_instance=None):
         self.parent = parent
-        self.service = service
+        self.service = service or search_service
+        self.access_service = access_service_instance or access_service
         self.variables = {}
         self._crear_variables()
         self._crear_widgets()
@@ -2371,12 +2380,7 @@ class CreacionPersonaFrame:
             self.parent.wait_window(dialog.dialog)
             
             if dialog.result:
-                import sys
-                import os
-                sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'services'))
-                from access_management_service import access_service
-                
-                success, message = access_service.create_employee(dialog.result)
+                success, message = self.access_service.create_employee(dialog.result)
                 
                 if success:
                     messagebox.showinfo("Éxito", message)
@@ -2434,12 +2438,7 @@ class CreacionPersonaFrame:
         
         # Buscar la persona en la base de datos
         try:
-            import sys
-            import os
-            sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'services'))
-            from access_management_service import access_service
-            
-            persona_data = access_service.get_employee_by_id(scotia_id)
+            persona_data = self.access_service.get_employee_by_id(scotia_id)
             if not persona_data:
                 messagebox.showerror("Error", "No se pudo encontrar la persona seleccionada")
                 return
@@ -2455,7 +2454,7 @@ class CreacionPersonaFrame:
             self.parent.wait_window(dialog.dialog)
             
             if dialog.result:
-                success, message = access_service.update_employee(scotia_id, dialog.result)
+                success, message = self.access_service.update_employee(scotia_id, dialog.result)
                 if success:
                     messagebox.showinfo("Éxito", message)
                     self.actualizar_tabla()
@@ -2487,12 +2486,7 @@ class CreacionPersonaFrame:
         
         if result:
             try:
-                import sys
-                import os
-                sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'services'))
-                from access_management_service import access_service
-                
-                success, message = access_service.delete_employee(scotia_id)
+                success, message = self.access_service.delete_employee(scotia_id)
                 if success:
                     messagebox.showinfo("Éxito", message)
                     self.actualizar_tabla()
@@ -2542,13 +2536,8 @@ class CreacionPersonaFrame:
     def mostrar_estadisticas_headcount(self):
         """Muestra las estadísticas del headcount en una ventana"""
         try:
-            import sys
-            import os
-            sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'services'))
-            from access_management_service import access_service
-            
             # Obtener estadísticas
-            stats = access_service.get_headcount_statistics()
+            stats = self.access_service.get_headcount_statistics()
             
             if "error" in stats:
                 messagebox.showerror("Error", stats["error"])
@@ -2922,12 +2911,12 @@ class PersonaDialog:
         for field, message_text in required_fields:
             if not self.variables[field].get().strip():
                 messagebox.showerror("Error", message_text)
-                return
+            return
         
         # Preparar datos
         self.result = {}
         for var_name, var in self.variables.items():
-            self.result[var_name] = var.get().strip()
+                self.result[var_name] = var.get().strip()
         
         # Normalizar campos legacy para compatibilidad con el servicio
         self.result['status'] = self.result.get('status') or 'Active'

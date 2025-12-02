@@ -322,7 +322,11 @@ class AppEmpleadosRefactorizada:
         """Crea el componente de creación de persona"""
         try:
             print("Creando componente de creación...")
-            self.componentes['creacion_persona'] = CreacionPersonaFrame(self.contenido_principal_frame, search_service)
+            self.componentes['creacion_persona'] = CreacionPersonaFrame(
+                self.contenido_principal_frame,
+                search_service,
+                access_service
+            )
             self.componentes['creacion_persona'].frame.grid(row=0, column=0, sticky="nsew")
             self.componentes['creacion_persona'].frame.grid_remove()
             print("Componente de creación creado exitosamente")
